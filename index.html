@@ -1,1 +1,884 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HUTY — Validador SPED 2025</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#EFF2F7;min-height:100vh}
+#header{background:#0D1B2A;color:#fff;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+#header-title{font-size:18px;font-weight:700}
+#header-sub{font-size:12px;color:#8BA3BC;margin-top:2px}
+#empresa-bar{background:#1A3050;color:#fff;padding:10px 28px;display:flex;gap:28px;flex-wrap:wrap;font-size:12px}
+#empresa-bar span{color:#8BA3BC;margin-right:4px}
+#content{max-width:1100px;margin:0 auto;padding:22px 16px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:16px}
+.card-title{font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #EFF2F7}
+.badge{padding:5px 14px;border-radius:100px;font-size:13px;font-weight:700}
+.badge-ok{background:#DCFCE7;color:#15803D}
+.badge-err{background:#FEE2E2;color:#B91C1C}
+.badge-warn{background:#FFFBEB;color:#D97706}
+.badge-wait{background:#EFF6FF;color:#1D4ED8}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:#F8FAFC;border-radius:10px;padding:14px;border:1px solid #E2E8F0}
+.kpi-label{font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.kpi-value{font-size:17px;font-weight:700;color:#0D1B2A}
+.kpi-sub{font-size:11px;color:#9CA3AF;margin-top:2px}
+.kpi-neg{color:#DC2626}
+.check-row{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid #F3F4F6}
+.check-row:last-child{border-bottom:none}
+.check-label{font-size:13px;font-weight:600;color:#1F2937}
+.check-detail{font-size:12px;color:#6B7280;margin-top:2px}
+.check-detail.bad{color:#DC2626}
+.tab-bar{display:flex;gap:4px;margin-bottom:16px;background:#E2E8F0;padding:4px;border-radius:10px;overflow-x:auto}
+.tab-btn{padding:8px 13px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;background:transparent;color:#6B7280;transition:all .15s}
+.tab-btn.active{background:#0D1B2A;color:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#F8FAFC;padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #E2E8F0}
+td{padding:10px 12px;border-bottom:1px solid #F3F4F6;color:#374151;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#F8FAFC}
+.td-val{font-family:'SF Mono',Consolas,monospace;font-size:12px}
+.td-ok{color:#16A34A;font-weight:700}
+.td-err{color:#DC2626;font-weight:700}
+.td-skip{color:#9CA3AF}
+.upload-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+@media(max-width:860px){.upload-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.upload-grid{grid-template-columns:repeat(2,1fr)}}
+.upload-block-label{font-size:11px;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.upload-zone{border:2px dashed #D1D5DB;border-radius:10px;padding:14px 8px;cursor:pointer;transition:all .2s;height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.upload-zone:hover{border-color:#4F46E5;background:#F5F3FF}
+.upload-zone.loaded-pdf{border-color:#7C3AED;background:#F5F3FF;border-style:solid}
+.upload-zone.loaded-sped{border-color:#16A34A;background:#F0FDF4;border-style:solid}
+.upload-icon{font-size:22px}
+.upload-label{font-size:11px;font-weight:600;color:#374151;word-break:break-all;text-align:center;max-width:100%}
+.upload-sub{font-size:10px;color:#9CA3AF;text-align:center}
+.btn-primary{background:#0D1B2A;color:#fff;border:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;width:100%;transition:opacity .2s}
+.btn-primary:hover{opacity:.85}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed}
+.btn-outline{background:transparent;border:1px solid #4A6580;color:#8BA3BC;padding:7px 16px;border-radius:6px;font-size:12px;cursor:pointer}
+.alert-blue{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:11px 14px;font-size:12px;color:#1D4ED8;margin-top:12px}
+.alert-amber{background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:11px 14px;font-size:12px;color:#92400E;margin-top:12px}
+.alert-green{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:11px 14px;font-size:12px;color:#15803D;margin-top:12px}
+.progress-bar-wrap{background:#E2E8F0;border-radius:100px;height:6px;margin:10px 0 4px;overflow:hidden}
+.progress-bar-fill{height:100%;background:#0D1B2A;border-radius:100px;transition:width .3s}
+#progress-msg{font-size:12px;color:#6B7280;text-align:center;min-height:18px}
+.tag-pdf{display:inline-block;background:#EDE9FE;color:#5B21B6;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700}
+.tag-ecd{display:inline-block;background:#DBEAFE;color:#1D4ED8;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700}
+.tag-ecf{display:inline-block;background:#D1FAE5;color:#065F46;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700}
+.atencao-box{border-left:4px solid #F59E0B;background:#FFFBEB;padding:12px 14px;border-radius:0 8px 8px 0;margin-bottom:10px}
+.atencao-box.red{border-left-color:#DC2626;background:#FEF2F2}
+.atencao-title{font-size:12px;font-weight:700;color:#D97706;margin-bottom:3px}
+.atencao-box.red .atencao-title{color:#B91C1C}
+.atencao-body{font-size:12px;color:#78350F}
+.atencao-box.red .atencao-body{color:#7F1D1D}
+.steps-bar{display:flex;gap:0;margin-bottom:18px}
+.step{flex:1;text-align:center;padding:10px 4px;font-size:11px;font-weight:600;color:#9CA3AF;border-bottom:3px solid #E2E8F0;transition:all .2s}
+.step.done{color:#16A34A;border-bottom-color:#16A34A}
+.step.active{color:#0D1B2A;border-bottom-color:#0D1B2A}
+.empty-state{text-align:center;padding:32px;color:#9CA3AF;font-size:13px}
+</style>
+</head>
+<body>
 
+<!-- ===== TELA UPLOAD ===== -->
+<div id="screen-upload">
+  <div id="header">
+    <div>
+      <div id="header-title">⚖️ HUTY — Validador SPED</div>
+      <div id="header-sub">Cruzamento automático: Balanço · DRE · Balancete · ECD · ECF</div>
+    </div>
+    <span class="badge badge-wait">⏳ Aguardando arquivos</span>
+  </div>
+
+  <div id="content">
+    <div class="card">
+      <div class="card-title">📂 Carregue os documentos para validação</div>
+
+      <div class="steps-bar">
+        <div class="step active" id="step1">① Balanço PDF</div>
+        <div class="step" id="step2">② DRE PDF</div>
+        <div class="step" id="step3">③ Balancete PDF</div>
+        <div class="step" id="step4">④ ECD .txt</div>
+        <div class="step" id="step5">⑤ ECF .txt</div>
+      </div>
+
+      <div class="upload-grid">
+        <div>
+          <div class="upload-block-label" style="color:#7C3AED">🏦 Balanço Patrimonial</div>
+          <label class="upload-zone" id="zone-bp" for="input-bp">
+            <input type="file" accept=".pdf" id="input-bp" style="display:none" onchange="loadPDF('bp',this)"/>
+            <div class="upload-icon">🏦</div>
+            <div class="upload-label" id="label-bp">Selecionar PDF</div>
+            <div class="upload-sub" id="sub-bp">Domínio · PDF</div>
+          </label>
+        </div>
+        <div>
+          <div class="upload-block-label" style="color:#7C3AED">📈 DRE</div>
+          <label class="upload-zone" id="zone-dre" for="input-dre">
+            <input type="file" accept=".pdf" id="input-dre" style="display:none" onchange="loadPDF('dre',this)"/>
+            <div class="upload-icon">📈</div>
+            <div class="upload-label" id="label-dre">Selecionar PDF</div>
+            <div class="upload-sub" id="sub-dre">Domínio · PDF</div>
+          </label>
+        </div>
+        <div>
+          <div class="upload-block-label" style="color:#7C3AED">📋 Balancete</div>
+          <label class="upload-zone" id="zone-bal" for="input-bal">
+            <input type="file" accept=".pdf" id="input-bal" style="display:none" onchange="loadPDF('bal',this)"/>
+            <div class="upload-icon">📋</div>
+            <div class="upload-label" id="label-bal">Selecionar PDF</div>
+            <div class="upload-sub" id="sub-bal">Domínio · PDF</div>
+          </label>
+        </div>
+        <div>
+          <div class="upload-block-label" style="color:#1D4ED8">📒 ECD</div>
+          <label class="upload-zone" id="zone-ecd" for="input-ecd">
+            <input type="file" accept=".txt,.sped" id="input-ecd" style="display:none" onchange="loadSPED('ecd',this)"/>
+            <div class="upload-icon">📒</div>
+            <div class="upload-label" id="label-ecd">Selecionar .txt</div>
+            <div class="upload-sub" id="sub-ecd">SPED · ISO-8859-1</div>
+          </label>
+        </div>
+        <div>
+          <div class="upload-block-label" style="color:#065F46">📊 ECF</div>
+          <label class="upload-zone" id="zone-ecf" for="input-ecf">
+            <input type="file" accept=".txt,.sped" id="input-ecf" style="display:none" onchange="loadSPED('ecf',this)"/>
+            <div class="upload-icon">📊</div>
+            <div class="upload-label" id="label-ecf">Selecionar .txt</div>
+            <div class="upload-sub" id="sub-ecf">SPED · ISO-8859-1</div>
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-top:16px">
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+        <div id="progress-msg">Carregue ao menos a ECD e a ECF para iniciar</div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn-primary" id="btn-analyze" disabled onclick="analyze()">🔍 &nbsp;Analisar e Validar</button>
+      </div>
+      <div class="alert-blue">🔒 Processamento 100% local — nenhum dado é enviado para servidores externos.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ℹ️ O que é validado automaticamente</div>
+      <table>
+        <tr><th>Cruzamento</th><th>Fonte A</th><th>Fonte B</th></tr>
+        <tr><td>CNPJ idêntico em todos os arquivos</td><td><span class="tag-pdf">PDFs</span></td><td><span class="tag-ecd">ECD</span> <span class="tag-ecf">ECF</span></td></tr>
+        <tr><td>Receita Bruta</td><td><span class="tag-pdf">DRE PDF</span></td><td><span class="tag-ecd">J150</span> <span class="tag-ecf">P100</span></td></tr>
+        <tr><td>Lucro / Prejuízo Líquido</td><td><span class="tag-pdf">DRE PDF</span></td><td><span class="tag-ecd">J150</span></td></tr>
+        <tr><td>Total do Ativo</td><td><span class="tag-pdf">Balanço PDF</span></td><td><span class="tag-ecd">J100</span></td></tr>
+        <tr><td>Patrimônio Líquido</td><td><span class="tag-pdf">Balanço PDF</span></td><td><span class="tag-ecd">J100</span></td></tr>
+        <tr><td>Provisão IRPJ</td><td><span class="tag-pdf">DRE PDF</span></td><td><span class="tag-ecf">P150</span></td></tr>
+        <tr><td>Provisão CSLL</td><td><span class="tag-pdf">DRE PDF</span></td><td><span class="tag-ecf">P200</span></td></tr>
+        <tr><td>Balancete equilibrado (débitos = créditos)</td><td><span class="tag-pdf">Balancete PDF</span></td><td>—</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TELA RESULTADOS ===== -->
+<div id="screen-results" style="display:none">
+  <div id="header">
+    <div>
+      <div id="header-title">⚖️ HUTY — Validador SPED</div>
+      <div id="header-sub" id="res-sub">Resultado da análise</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="badge" id="res-badge">—</span>
+      <button class="btn-outline" onclick="resetApp()">↩ Nova análise</button>
+    </div>
+  </div>
+  <div id="empresa-bar-res"></div>
+
+  <div style="max-width:1100px;margin:0 auto;padding:22px 16px">
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="setTab('resumo')">📋 Resumo</button>
+      <button class="tab-btn" onclick="setTab('cruzamento')">🔀 Cruzamento</button>
+      <button class="tab-btn" onclick="setTab('dre')">📈 DRE</button>
+      <button class="tab-btn" onclick="setTab('bp')">🏦 Balanço</button>
+      <button class="tab-btn" onclick="setTab('balancete')">📋 Balancete</button>
+      <button class="tab-btn" onclick="setTab('impostos')">🧾 IRPJ / CSLL</button>
+    </div>
+    <div id="tab-resumo"></div>
+    <div id="tab-cruzamento" style="display:none"></div>
+    <div id="tab-dre" style="display:none"></div>
+    <div id="tab-bp" style="display:none"></div>
+    <div id="tab-balancete" style="display:none"></div>
+    <div id="tab-impostos" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────
+// ESTADO
+// ─────────────────────────────────────────────────────
+const S={
+  bpText:null,dreText:null,balText:null,
+  ecdRaw:null,ecfRaw:null,
+  loaded:{bp:false,dre:false,bal:false,ecd:false,ecf:false},
+  results:null
+};
+
+// ─────────────────────────────────────────────────────
+// UTILITÁRIOS
+// ─────────────────────────────────────────────────────
+function fmtBRL(v){
+  if(v===null||v===undefined||isNaN(v))return'—';
+  const s=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Math.abs(v));
+  return v<0?'('+s+')':s;
+}
+function near(a,b,tol=2){return a!==null&&b!==null&&!isNaN(a)&&!isNaN(b)&&Math.abs(a-b)<=tol;}
+function parseBR(v){
+  if(!v)return null;
+  const s=(v+'').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.');
+  const n=parseFloat(s);
+  return isNaN(n)?null:n;
+}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtCNPJ(c){const d=(c||'').replace(/\D/g,'');return d.length===14?`${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`:c||'—';}
+function fmtDate(dt){const d=(dt||'').replace(/\D/g,'');return d.length===8?`${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`:dt||'—';}
+
+function pill(ok){
+  if(ok===null||ok===undefined)return'<span style="background:#F3F4F6;color:#9CA3AF;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:700">N/D</span>';
+  return ok
+    ?'<span style="background:#DCFCE7;color:#16A34A;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:700">✅ OK</span>'
+    :'<span style="background:#FEE2E2;color:#DC2626;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:700">❌ Diverge</span>';
+}
+
+// ─────────────────────────────────────────────────────
+// PARSERS PDF DOMÍNIO — genérico
+// ─────────────────────────────────────────────────────
+function num(txt, patterns){
+  for(const p of patterns){
+    const m=txt.match(p);
+    if(m){const v=parseBR(m[1]);if(v!==null)return v;}
+  }
+  return null;
+}
+
+function parseDRE(txt){
+  if(!txt)return null;
+  const t=txt.replace(/\s+/g,' ');
+  // Detectar se é prejuízo (valor negativo)
+  const isPrejuizo=t.match(/PREJU[IÍ]ZO DO EXERC[IÍ]CIO/i)!==null;
+  const vlLiquido=num(t,[
+    /LUCRO L[IÍ]QUIDO DO EXERC[IÍ]CIO[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+    /LUCRO L[IÍ]QUIDO[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+    /PREJU[IÍ]ZO DO EXERC[IÍ]CIO[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+    /RESULTADO DO EXERC[IÍ]CIO[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+  ]);
+  return{
+    receitaBruta: num(t,[
+      /SERVI[ÇC]OS PRESTADOS[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+      /RECEITA DE PRESTA[ÇC][AÃ]O[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+      /RECEITA BRUTA[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+    ]),
+    iss:    num(t,[/\(-?\) ?ISS[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    cofins: num(t,[/\(-?\) ?COFINS[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    pis:    num(t,[/\(-?\) ?PIS[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    receitaLiquida: num(t,[/RECEITA L[IÍ]QUIDA[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    despesasOp: num(t,[/DESPESAS OPERACIONAIS[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    resultadoOp: num(t,[
+      /RESULTADO OPERACIONAL[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+      /RESULTADO ANTES DO IR[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+    ]),
+    provIrpj: num(t,[
+      /PROVIS[AÃ]O? (?:DE )?IRPJ[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+      /IMPOSTO DE RENDA[^()\d]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+      /PROVISAO IRPJ[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+    ]),
+    provCsll: num(t,[
+      /PROVIS[AÃ]O? (?:DE )?CSLL[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+      /CONTRIBUI[ÇC][AÃ]O SOCIAL[^()\d]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+      /PROVISAO CSLL[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+    ]),
+    lucroLiquido: vlLiquido!==null?(isPrejuizo?-vlLiquido:vlLiquido):null,
+  };
+}
+
+function parseBP(txt){
+  if(!txt)return null;
+  const t=txt.replace(/\s+/g,' ');
+
+  // Total ativo — busca valor grande seguido de "D" (devedor) típico do Domínio
+  const ativoVal = num(t,[
+    /\b1\s+ATIVO\b[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+    /TOTAL (?:DO )?ATIVO[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+    /ATIVO CIRCULANTE.{0,300}ATIVO N[AÃ]O.CIRCULANTE.{0,100}([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})D/i,
+  ]);
+
+  const plVal = num(t,[
+    /PATRIM[OÔ]NIO L[IÍ]QUIDO[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+  ]);
+
+  // Detecta se PL é devedor (negativo) pelo "D" logo após o valor no Domínio
+  const plNeg = plVal!==null && (
+    t.match(new RegExp(plVal.toFixed(2).replace('.','\\.').replace(',',',')+'D','i')) ||
+    t.includes('PREJUÍZOS ACUMULADOS') || t.includes('PREJUIZOS ACUMULADOS')
+  );
+
+  return{
+    totalAtivo:      ativoVal,
+    ativoCirculante: num(t,[/ATIVO CIRCULANTE[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    ativoNaoCirc:    num(t,[/ATIVO N[AÃ]O.CIRCULANTE[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    passivoCirc:     num(t,[/PASSIVO CIRCULANTE[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    passivoNaoCirc:  num(t,[/PASSIVO N[AÃ]O.CIRCULANTE[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    pl: plVal!==null ? (plNeg ? -plVal : plVal) : null,
+    capitalSubscrito:num(t,[/CAPITAL SUBSCRITO[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    prejAcumulados:  num(t,[/PREJU[IÍ]ZOS ACUMULADOS[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]),
+    empresa: (txt.match(/^([A-ZÁÉÍÓÚÀÃÕÂÊÔ\s,./&-]{5,60})\s*\n/m)||['',''])[1].trim(),
+    cnpj: (txt.match(/(\d{2}[.\-]?\d{3}[.\-]?\d{3}[/\\]?\d{4}[-]?\d{2})/)||['',''])[1].replace(/\D/g,''),
+  };
+}
+
+function parseBalancete(txt){
+  if(!txt)return null;
+  const t=txt.replace(/\s+/g,' ');
+  const deb = num(t,[/CONTAS DEVEDORAS[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]);
+  const crd = num(t,[/CONTAS CREDORAS[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i]);
+  const rb  = num(t,[
+    /SERVI[ÇC]OS PRESTADOS[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+    /RECEITA BRUTA[^0-9]*([\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})/i,
+  ]);
+  return{
+    totalDebito: deb,
+    totalCredito: crd,
+    receitaBruta: rb,
+    bate: (deb!==null&&crd!==null) ? near(deb,crd,100) : null,
+  };
+}
+
+// ─────────────────────────────────────────────────────
+// PARSERS SPED (ECD / ECF)
+// ─────────────────────────────────────────────────────
+function parseSPED(raw){
+  const map={};
+  // Normaliza CRLF e CR para LF, remove BOM se existir
+  const txt=raw.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  for(const line of txt.split('\n')){
+    const t=line.trim();
+    if(!t||!t.startsWith('|'))continue;
+    const p=t.split('|');
+    // p[0]='' (vazio antes do primeiro |), p[1]=registro, p[2..]=campos
+    const reg=p[1];
+    if(!reg)continue;
+    (map[reg]=map[reg]||[]).push(p.slice(2));
+  }
+  return map;
+}
+
+function parseECD(raw){
+  const m=parseSPED(raw);
+
+  // 0000 oficial: f[0]=LECD f[1]=DT_INI f[2]=DT_FIN f[3]=NOME f[4]=CNPJ
+  const r0=(m['0000']||[[]])[0];
+  const empresa={
+    cnpj:(r0[4]||'').replace(/\D/g,''),
+    nome:r0[3]||'',
+    dtIni:r0[1]||'',
+    dtFin:r0[2]||'',
+    leiaute:r0[0]||'',
+  };
+
+  // J100 oficial: f[0]=COD_AGL f[1]=IND(T/D) f[2]=NIVEL f[3]=COD_PAI
+  //              f[4]=IND_GRP(A/P) f[5]=DESCR f[6]=VL_INI f[7]=NAT_INI
+  //              f[8]=VL_FIN f[9]=NAT_FIN
+  const j100all=(m['J100']||[]).map(f=>({
+    cod:f[0]||'',ind:f[1]||'',nivel:parseInt(f[2]||'0'),pai:f[3]||'',
+    grp:f[4]||'',desc:(f[5]||'').toUpperCase(),
+    vlIni:parseBR(f[6]),natIni:f[7]||'',
+    vlFin:parseBR(f[8]),natFin:f[9]||'',
+  }));
+
+  // J150 oficial: f[0]=NU_ORDEM f[1]=COD_AGL f[2]=IND(T/D) f[3]=NIVEL
+  //              f[4]=COD_PAI f[5]=DESCR f[6]=VL_INI f[7]=NAT_INI
+  //              f[8]=VL_FIN f[9]=NAT_FIN f[10]=IND_GRP_DRE(D/R)
+  const j150all=(m['J150']||[]).map(f=>({
+    nu:f[0]||'',cod:f[1]||'',ind:f[2]||'',nivel:parseInt(f[3]||'0'),
+    pai:f[4]||'',desc:(f[5]||'').toUpperCase(),
+    vlIni:parseBR(f[6]),natIni:f[7]||'',
+    vlFin:parseBR(f[8]),natFin:f[9]||'',
+    grpDre:f[10]||'',
+  }));
+
+  // Separar livros: J100 separa quando COD_AGL='1' (ATIVO raiz)
+  //                J150 separa quando NU_ORDEM='1' (primeira linha da DRE)
+  function splitBy(arr,keyFn){
+    const livros=[];let cur=[];
+    for(const r of arr){
+      if(keyFn(r)&&cur.length>0){livros.push(cur);cur=[];}
+      cur.push(r);
+    }
+    if(cur.length>0)livros.push(cur);
+    return livros;
+  }
+
+  // Livro anual = último (arquivo tem 5 livros: 4 trimestrais + 1 anual)
+  const j100=(splitBy(j100all,r=>r.cod==='1').pop())||[];
+  const j150=(splitBy(j150all,r=>r.nu==='1').pop())||[];
+
+  // Receita Bruta: J150 grpDre='R' nivel maior (receita)
+  // Busca pela linha de RECEITA BRUTA ou primeiro nível 'R' (receita)
+  const rbRow=j150.find(a=>a.desc.includes('RECEITA BRUTA'));
+  const receitaBruta=rbRow?(rbRow.natFin==='C'?rbRow.vlFin:rbRow.vlIni):null;
+
+  // Resultado: nível 1 = única linha raiz da DRE (Lucro/Prejuízo do Exercício)
+  const resRow=j150.find(a=>a.nivel===1);
+  let resultado=null;
+  if(resRow){
+    resultado=resRow.natFin==='D'?-(resRow.vlFin):resRow.vlFin;
+  }
+
+  // Ativo total: J100 grp='A' nivel=1 (ATIVO raiz)
+  let totalAtivo=null,totalPL=null;
+  const ativoRow=j100.find(r=>r.nivel===1&&r.grp==='A');
+  if(ativoRow) totalAtivo=ativoRow.vlFin;
+
+  // PL: J100 grp='P' nivel=2 com PATRIM no desc
+  const plRow=j100.find(r=>r.grp==='P'&&r.nivel===2&&r.desc.includes('PATRIM'));
+  if(plRow) totalPL=plRow.natFin==='D'?-(plRow.vlFin):plRow.vlFin;
+
+  return{empresa,j150,j100,receitaBruta,resultado,totalAtivo,totalPL};
+}
+
+function parseECF(raw){
+  const m=parseSPED(raw);
+
+  // 0000 ECF oficial: f[0]=LECF f[1]=COD_VER f[2]=CNPJ f[3]=NOME
+  //                   f[8]=DT_INI f[9]=DT_FIN
+  const r0=(m['0000']||[[]])[0];
+  const empresa={
+    cnpj:(r0[2]||'').replace(/\D/g,''),
+    nome:r0[3]||'',
+    dtIni:r0[8]||'',
+    dtFin:r0[9]||'',
+    leiaute:r0[0]||'',
+  };
+
+  // P150 = DRE LP: f[0]=CODIGO f[1]=DESCRICAO f[2]=TIPO f[3]=NIVEL
+  //        f[4]=COD_NAT f[5]=COD_CTA_SUP f[6]=VALOR f[7]=IND_VALOR(D/C)
+  const p150=(m['P150']||[]);
+  let receitaBruta=null;
+  for(const f of p150){
+    const cod=(f[0]||'').toUpperCase();
+    const desc=(f[1]||'').toUpperCase();
+    const val=parseBR(f[6]);
+    const nat=f[7]||'';
+    if((cod.startsWith('3.01')||desc.includes('RECEITA BRUTA'))&&val!==null&&nat==='C'){
+      receitaBruta=(receitaBruta||0)+val;
+    }
+  }
+  if(!receitaBruta&&p150.length>0){
+    const tot=p150.filter(f=>f[2]==='A'&&f[7]==='C').reduce((s,f)=>{const v=parseBR(f[6]);return s+(v||0);},0);
+    if(tot>0) receitaBruta=tot;
+  }
+
+  // P300 = IRPJ calculado LP: f[0]=CODIGO f[1]=DESCRICAO f[2]=VALOR
+  const p300=(m['P300']||[]);
+  let irpj=null;
+  for(const f of p300){
+    const desc=(f[1]||'').toUpperCase();
+    const val=parseBR(f[2]);
+    if(val&&val>0&&(desc.includes('IRPJ')||desc.includes('IMPOSTO DEVIDO')||desc.includes('TOTAL DO IRPJ'))){
+      irpj=(irpj||0)+val;
+    }
+  }
+  if(!irpj&&p300.length>0){
+    const vals=p300.map(f=>parseBR(f[2])||0).filter(v=>v>0);
+    if(vals.length>0) irpj=Math.max(...vals);
+  }
+
+  // P500 = CSLL calculada LP: f[0]=CODIGO f[1]=DESCRICAO f[2]=VALOR
+  const p500=(m['P500']||[]);
+  let csll=null;
+  for(const f of p500){
+    const desc=(f[1]||'').toUpperCase();
+    const val=parseBR(f[2]);
+    if(val&&val>0&&(desc.includes('CSLL')||desc.includes('CONTRIBUICAO DEVIDA')||desc.includes('TOTAL DA CSLL'))){
+      csll=(csll||0)+val;
+    }
+  }
+  if(!csll&&p500.length>0){
+    const vals=p500.map(f=>parseBR(f[2])||0).filter(v=>v>0);
+    if(vals.length>0) csll=Math.max(...vals);
+  }
+
+  return{empresa,receitaBruta,irpj,csll};
+}
+
+
+// ─────────────────────────────────────────────────────
+// EXTRAÇÃO PDF.js
+// ─────────────────────────────────────────────────────
+async function extractPDFText(file){
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  let txt='';
+  for(let i=1;i<=pdf.numPages;i++){
+    const pg=await pdf.getPage(i);
+    const ct=await pg.getTextContent();
+    txt+=ct.items.map(it=>it.str).join(' ')+'\n';
+  }
+  return txt;
+}
+
+// ─────────────────────────────────────────────────────
+// UPLOAD HANDLERS
+// ─────────────────────────────────────────────────────
+async function loadPDF(tipo,input){
+  const file=input.files[0];if(!file)return;
+  setZoneLoading(tipo);
+  try{
+    const txt=await extractPDFText(file);
+    S[tipo+'Text']=txt;
+    S.loaded[tipo]=true;
+    setZoneDone(tipo,file.name,'loaded-pdf');
+    updateProgress();
+  }catch(e){alert('Erro ao ler PDF: '+e.message);setZoneReset(tipo);}
+}
+
+function loadSPED(tipo,input){
+  const file=input.files[0];if(!file)return;
+  // Tentar ISO-8859-1 (padrão SPED) e fallback UTF-8
+  const r=new FileReader();
+  r.onload=ev=>{
+    let txt=ev.target.result;
+    // Verificar se parsing funcionou checando se tem registros SPED
+    if(!txt.includes('|0000|')){
+      // Tentar UTF-8
+      const r2=new FileReader();
+      r2.onload=ev2=>{
+        S[tipo+'Raw']=ev2.target.result;
+        S.loaded[tipo]=true;
+        setZoneDone(tipo,file.name,'loaded-sped');
+        updateProgress();
+      };
+      r2.readAsText(file,'UTF-8');
+      return;
+    }
+    S[tipo+'Raw']=txt;
+    S.loaded[tipo]=true;
+    setZoneDone(tipo,file.name,'loaded-sped');
+    updateProgress();
+  };
+  r.readAsText(file,'ISO-8859-1');
+}
+
+function setZoneLoading(t){
+  document.getElementById('label-'+t).textContent='Lendo…';
+}
+function setZoneDone(t,nome,cls){
+  const z=document.getElementById('zone-'+t);
+  z.className='upload-zone '+cls;
+  z.querySelector('.upload-icon').textContent='✅';
+  const lb=document.getElementById('label-'+t);
+  lb.textContent=nome.length>18?nome.slice(0,16)+'…':nome;
+  lb.style.color=cls==='loaded-sped'?'#16A34A':'#7C3AED';
+  document.getElementById('sub-'+t).textContent='Carregado ✓';
+}
+function setZoneReset(t){
+  const icons={bp:'🏦',dre:'📈',bal:'📋',ecd:'📒',ecf:'📊'};
+  const subs={bp:'Domínio · PDF',dre:'Domínio · PDF',bal:'Domínio · PDF',ecd:'SPED · ISO-8859-1',ecf:'SPED · ISO-8859-1'};
+  const z=document.getElementById('zone-'+t);
+  z.className='upload-zone';
+  z.querySelector('.upload-icon').textContent=icons[t];
+  const lb=document.getElementById('label-'+t);
+  lb.textContent='Selecionar';lb.style.color='#374151';
+  document.getElementById('sub-'+t).textContent=subs[t];
+}
+function updateProgress(){
+  const tipos=['bp','dre','bal','ecd','ecf'];
+  const done=tipos.filter(t=>S.loaded[t]).length;
+  document.getElementById('prog-bar').style.width=(done/5*100)+'%';
+  document.getElementById('progress-msg').textContent=
+    done===5?'Todos os arquivos carregados — pronto para analisar!':
+    `${done} de 5 arquivos carregados`;
+  tipos.forEach((t,i)=>{
+    const el=document.getElementById('step'+(i+1));
+    el.className='step'+(S.loaded[t]?' done':i===done?' active':'');
+  });
+  // Mínimo: ECD ou ECF
+  document.getElementById('btn-analyze').disabled=!(S.loaded.ecd||S.loaded.ecf);
+}
+
+// ─────────────────────────────────────────────────────
+// ANÁLISE
+// ─────────────────────────────────────────────────────
+function analyze(){
+  const btn=document.getElementById('btn-analyze');
+  btn.disabled=true;btn.textContent='⏳ Processando…';
+  setTimeout(()=>{
+    try{
+      const pdfDRE=parseDRE(S.dreText);
+      const pdfBP =parseBP(S.bpText);
+      const pdfBAL=parseBalancete(S.balText);
+      const ecd   =S.ecdRaw?parseECD(S.ecdRaw):null;
+      const ecf   =S.ecfRaw?parseECF(S.ecfRaw):null;
+
+      // CNPJ de referência — pega do ECD/ECF/BP
+      const cnpjRef=(ecd?.empresa?.cnpj||ecf?.empresa?.cnpj||pdfBP?.cnpj||'').replace(/\D/g,'');
+
+      const cnpjEcd = ecd&&cnpjRef?ecd.empresa.cnpj===cnpjRef:null;
+      const cnpjEcf = ecf&&cnpjRef?ecf.empresa.cnpj===cnpjRef:null;
+
+      const rbDre=pdfDRE?.receitaBruta??null;
+      const rbEcd=ecd?.receitaBruta??null;
+      const rbEcf=ecf?.receitaBruta??null;
+      const rbDreEcd=(rbDre!==null&&rbEcd!==null)?near(rbDre,rbEcd,5):null;
+      const rbDreEcf=(rbDre!==null&&rbEcf!==null)?near(rbDre,rbEcf,5):null;
+      const rbEcdEcf=(rbEcd!==null&&rbEcf!==null)?near(rbEcd,rbEcf,5):null;
+
+      const lucDre=pdfDRE?.lucroLiquido??null;
+      const lucEcd=ecd?.resultado??null;
+      const lucMatch=(lucDre!==null&&lucEcd!==null)?near(lucDre,lucEcd,10):null;
+
+      const ativoP=pdfBP?.totalAtivo??null;
+      const ativoE=ecd?.totalAtivo??null;
+      const ativoMatch=(ativoP!==null&&ativoE!==null)?near(ativoP,ativoE,10):null;
+
+      const plP=pdfBP?.pl??null;
+      const plE=ecd?.totalPL??null;
+      const plMatch=(plP!==null&&plE!==null)?near(plP,plE,10):null;
+
+      const irpjP=pdfDRE?.provIrpj??null;
+      const irpjE=ecf?.irpj??null;
+      const irpjMatch=(irpjP!==null&&irpjE!==null)?near(irpjP,irpjE,10):null;
+
+      const csllP=pdfDRE?.provCsll??null;
+      const csllE=ecf?.csll??null;
+      const csllMatch=(csllP!==null&&csllE!==null)?near(csllP,csllE,10):null;
+
+      const balBate=pdfBAL?.bate??null;
+
+      const allChecks=[cnpjEcd,cnpjEcf,rbDreEcd,rbDreEcf,rbEcdEcf,lucMatch,ativoMatch,plMatch,irpjMatch,csllMatch,balBate];
+      const fails=allChecks.filter(x=>x===false).length;
+      const allOk=fails===0&&(ecd||ecf)!==null;
+
+      S.results={pdfDRE,pdfBP,pdfBAL,ecd,ecf,cnpjRef,
+        cnpjEcd,cnpjEcf,
+        rbDre,rbEcd,rbEcf,rbDreEcd,rbDreEcf,rbEcdEcf,
+        lucDre,lucEcd,lucMatch,
+        ativoP,ativoE,ativoMatch,
+        plP,plE,plMatch,
+        irpjP,irpjE,irpjMatch,
+        csllP,csllE,csllMatch,
+        balBate,fails,allOk};
+
+      renderResults();
+    }catch(e){
+      alert('Erro na análise: '+e.message+'\n'+e.stack);
+      btn.disabled=false;
+      btn.textContent='🔍 Analisar e Validar';
+    }
+  },80);
+}
+
+// ─────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────
+function renderResults(){
+  const R=S.results;
+  document.getElementById('screen-upload').style.display='none';
+  document.getElementById('screen-results').style.display='block';
+
+  const badge=document.getElementById('res-badge');
+  badge.textContent=R.allOk?'✓ VALIDADO':R.fails>0?'⚠ '+R.fails+' DIVERGÊNCIA(S)':'⏳ PARCIAL';
+  badge.className='badge '+(R.allOk?'badge-ok':R.fails>0?'badge-err':'badge-warn');
+
+  const nome=R.ecd?.empresa?.nome||R.ecf?.empresa?.nome||R.pdfBP?.empresa||'—';
+  const cnpj=fmtCNPJ(R.cnpjRef);
+  const periodoEcd=R.ecd?`${fmtDate(R.ecd.empresa.dtIni)} – ${fmtDate(R.ecd.empresa.dtFin)}`:'—';
+  const periodoEcf=R.ecf?`${fmtDate(R.ecf.empresa.dtIni)} – ${fmtDate(R.ecf.empresa.dtFin)}`:'—';
+
+  document.getElementById('empresa-bar-res').innerHTML=`
+    <div id="empresa-bar">
+      <div><span>Empresa</span><strong>${esc(nome)}</strong></div>
+      <div><span>CNPJ</span><strong>${cnpj}</strong></div>
+      ${R.ecd?`<div><span>Período ECD</span><strong>${periodoEcd}</strong></div>`:''}
+      ${R.ecf?`<div><span>Período ECF</span><strong>${periodoEcf}</strong></div>`:''}
+      ${R.ecd?`<div><span>Leiaute ECD</span><strong>${R.ecd.empresa.leiaute||'—'}</strong></div>`:''}
+      ${R.ecf?`<div><span>Leiaute ECF</span><strong>${R.ecf.empresa.leiaute||'—'}</strong></div>`:''}
+    </div>`;
+
+  renderResumo();renderCruzamento();renderDRE();renderBP();renderBalancete();renderImpostos();
+}
+
+function renderResumo(){
+  const R=S.results;
+  const checks=[
+    [R.cnpjEcd,    'CNPJ idêntico: ECD',            R.ecd?fmtCNPJ(R.ecd.empresa.cnpj):'ECD não carregada'],
+    [R.cnpjEcf,    'CNPJ idêntico: ECF',             R.ecf?fmtCNPJ(R.ecf.empresa.cnpj):'ECF não carregada'],
+    [R.rbDreEcd,   'Receita Bruta: DRE PDF × ECD',   `${fmtBRL(R.rbDre)} × ${fmtBRL(R.rbEcd)}`],
+    [R.rbDreEcf,   'Receita Bruta: DRE PDF × ECF',   `${fmtBRL(R.rbDre)} × ${fmtBRL(R.rbEcf)}`],
+    [R.rbEcdEcf,   'Receita Bruta: ECD × ECF',       `${fmtBRL(R.rbEcd)} × ${fmtBRL(R.rbEcf)}`],
+    [R.lucMatch,   'Lucro Líquido: DRE PDF × ECD',   `${fmtBRL(R.lucDre)} × ${fmtBRL(R.lucEcd)}`],
+    [R.ativoMatch, 'Total Ativo: Balanço PDF × ECD', `${fmtBRL(R.ativoP)} × ${fmtBRL(R.ativoE)}`],
+    [R.plMatch,    'PL: Balanço PDF × ECD',          `${fmtBRL(R.plP)} × ${fmtBRL(R.plE)}`],
+    [R.irpjMatch,  'Prov. IRPJ: DRE PDF × ECF',      `${fmtBRL(R.irpjP)} × ${fmtBRL(R.irpjE)}`],
+    [R.csllMatch,  'Prov. CSLL: DRE PDF × ECF',      `${fmtBRL(R.csllP)} × ${fmtBRL(R.csllE)}`],
+    [R.balBate,    'Balancete equilibrado (D=C)',     R.pdfBAL?`${fmtBRL(R.pdfBAL.totalDebito)} × ${fmtBRL(R.pdfBAL.totalCredito)}`:'Balancete não carregado'],
+  ];
+  const ok=checks.filter(c=>c[0]===true).length;
+  const fail=checks.filter(c=>c[0]===false).length;
+  const nd=checks.filter(c=>c[0]===null).length;
+
+  const kpis=`<div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">✅ Aprovadas</div><div class="kpi-value" style="color:#16A34A">${ok}</div><div class="kpi-sub">de ${checks.length} validações</div></div>
+    <div class="kpi"><div class="kpi-label">❌ Divergências</div><div class="kpi-value ${fail>0?'kpi-neg':''}">${fail}</div><div class="kpi-sub">${fail===0?'Nenhuma':'Requer atenção'}</div></div>
+    <div class="kpi"><div class="kpi-label">➖ Não det.</div><div class="kpi-value">${nd}</div><div class="kpi-sub">Arquivo ausente</div></div>
+    <div class="kpi"><div class="kpi-label">Receita Bruta</div><div class="kpi-value" style="font-size:14px">${fmtBRL(R.rbDre||R.rbEcd||R.rbEcf)}</div><div class="kpi-sub">DRE / ECD / ECF</div></div>
+    <div class="kpi"><div class="kpi-label">Lucro Líquido</div><div class="kpi-value" style="font-size:14px">${fmtBRL(R.lucDre||R.lucEcd)}</div><div class="kpi-sub">DRE PDF / ECD</div></div>
+    <div class="kpi"><div class="kpi-label">Resultado</div><div class="kpi-value" style="font-size:13px">${R.allOk?'✅ Aprovado':R.fails>0?'⚠️ Revisar':'⏳ Parcial'}</div><div class="kpi-sub">${R.fails} divergência(s)</div></div>
+  </div>`;
+
+  const rows=checks.map(([ok,lbl,det])=>`
+    <div class="check-row">
+      <div style="font-size:17px;flex-shrink:0;margin-top:1px">${ok===true?'✅':ok===false?'❌':'➖'}</div>
+      <div style="flex:1">
+        <div class="check-label">${esc(lbl)}</div>
+        <div class="check-detail ${ok===false?'bad':''}">${esc(det)}</div>
+      </div>
+      <div style="flex-shrink:0">${pill(ok)}</div>
+    </div>`).join('');
+
+  document.getElementById('tab-resumo').innerHTML=
+    `<div class="card">${kpis}</div><div class="card"><div class="card-title">Checklist de validações</div>${rows}</div>`;
+}
+
+function renderCruzamento(){
+  const R=S.results;
+  const rows=[
+    ['Receita Bruta',      R.rbDre,   R.rbEcd,   R.rbEcf,   R.rbDreEcd, R.rbDreEcf],
+    ['Lucro Líquido',      R.lucDre,  R.lucEcd,  null,       R.lucMatch, null],
+    ['Total Ativo',        R.ativoP,  R.ativoE,  null,       R.ativoMatch,null],
+    ['Patrimônio Líquido', R.plP,     R.plE,     null,       R.plMatch,  null],
+    ['Provisão IRPJ',      R.irpjP,   null,      R.irpjE,   null,       R.irpjMatch],
+    ['Provisão CSLL',      R.csllP,   null,      R.csllE,   null,       R.csllMatch],
+  ];
+  let html=`<div class="card"><div class="card-title">Cruzamento completo — PDF × ECD × ECF</div><table>
+    <tr><th>Campo</th><th>PDF <span class="tag-pdf">Domínio</span></th><th>ECD <span class="tag-ecd">J100/J150</span></th><th>ECF <span class="tag-ecf">P100/P150</span></th><th>PDF × ECD</th><th>PDF × ECF</th></tr>`;
+  for(const[lbl,vP,vE,vF,okPE,okPF]of rows){
+    const cPE=okPE===null?'td-skip':okPE?'td-ok':'td-err';
+    const cPF=okPF===null?'td-skip':okPF?'td-ok':'td-err';
+    html+=`<tr>
+      <td><strong>${esc(lbl)}</strong></td>
+      <td class="td-val">${fmtBRL(vP)}</td>
+      <td class="td-val">${vE!==null?fmtBRL(vE):'<span class="td-skip">—</span>'}</td>
+      <td class="td-val">${vF!==null?fmtBRL(vF):'<span class="td-skip">—</span>'}</td>
+      <td class="${cPE}">${okPE===null?'—':okPE?'✅ OK':'❌ Δ '+fmtBRL(Math.abs((vP||0)-(vE||0)))}</td>
+      <td class="${cPF}">${okPF===null?'—':okPF?'✅ OK':'❌ Δ '+fmtBRL(Math.abs((vP||0)-(vF||0)))}</td>
+    </tr>`;
+  }
+  html+='</table></div>';
+  document.getElementById('tab-cruzamento').innerHTML=html;
+}
+
+function renderDRE(){
+  const R=S.results;
+  if(!R.pdfDRE){document.getElementById('tab-dre').innerHTML='<div class="card"><div class="empty-state">PDF da DRE não carregado</div></div>';return;}
+  const d=R.pdfDRE;
+  document.getElementById('tab-dre').innerHTML=`
+    <div class="card"><div class="card-title">DRE — Demonstração do Resultado <span class="tag-pdf">PDF Domínio</span></div>
+    <table>
+      <tr><th>Descrição</th><th>PDF</th><th>ECD J150</th><th>ECF</th><th>Status</th></tr>
+      <tr><td><strong>Receita Bruta</strong></td><td class="td-val">${fmtBRL(d.receitaBruta)}</td><td class="td-val">${fmtBRL(R.rbEcd)}</td><td class="td-val">${fmtBRL(R.rbEcf)}</td><td class="${R.rbDreEcd===null?'td-skip':R.rbDreEcd?'td-ok':'td-err'}">${R.rbDreEcd===null?'—':R.rbDreEcd?'✅':'❌'}</td></tr>
+      <tr><td>(-) ISS</td><td class="td-val">${fmtBRL(d.iss)}</td><td colspan="3" class="td-skip"></td></tr>
+      <tr><td>(-) COFINS</td><td class="td-val">${fmtBRL(d.cofins)}</td><td colspan="3" class="td-skip"></td></tr>
+      <tr><td>(-) PIS</td><td class="td-val">${fmtBRL(d.pis)}</td><td colspan="3" class="td-skip"></td></tr>
+      <tr><td><strong>Receita Líquida</strong></td><td class="td-val"><strong>${fmtBRL(d.receitaLiquida)}</strong></td><td colspan="3" class="td-skip"></td></tr>
+      <tr><td>(-) Despesas Operacionais</td><td class="td-val">${fmtBRL(d.despesasOp)}</td><td colspan="3" class="td-skip"></td></tr>
+      <tr><td><strong>Resultado Operacional</strong></td><td class="td-val"><strong>${fmtBRL(d.resultadoOp)}</strong></td><td colspan="3" class="td-skip"></td></tr>
+      <tr><td>(-) Provisão IRPJ</td><td class="td-val">${fmtBRL(d.provIrpj)}</td><td class="td-skip">—</td><td class="td-val">${fmtBRL(R.irpjE)}</td><td class="${R.irpjMatch===null?'td-skip':R.irpjMatch?'td-ok':'td-err'}">${R.irpjMatch===null?'—':R.irpjMatch?'✅':'❌'}</td></tr>
+      <tr><td>(-) Provisão CSLL</td><td class="td-val">${fmtBRL(d.provCsll)}</td><td class="td-skip">—</td><td class="td-val">${fmtBRL(R.csllE)}</td><td class="${R.csllMatch===null?'td-skip':R.csllMatch?'td-ok':'td-err'}">${R.csllMatch===null?'—':R.csllMatch?'✅':'❌'}</td></tr>
+      <tr style="background:#F0FDF4"><td><strong>Lucro Líquido do Exercício</strong></td><td class="td-val"><strong>${fmtBRL(d.lucroLiquido)}</strong></td><td class="td-val"><strong>${fmtBRL(R.lucEcd)}</strong></td><td class="td-skip">—</td><td class="${R.lucMatch===null?'td-skip':R.lucMatch?'td-ok':'td-err'}">${R.lucMatch===null?'—':R.lucMatch?'✅ OK':'❌'}</td></tr>
+    </table></div>`;
+}
+
+function renderBP(){
+  const R=S.results;
+  if(!R.pdfBP){document.getElementById('tab-bp').innerHTML='<div class="card"><div class="empty-state">PDF do Balanço não carregado</div></div>';return;}
+  const b=R.pdfBP;
+  const plNeg=b.pl!==null&&b.pl<0;
+  document.getElementById('tab-bp').innerHTML=`
+    <div class="card"><div class="card-title">Balanço Patrimonial <span class="tag-pdf">PDF Domínio</span> × ECD J100</div>
+    <table>
+      <tr><th>Grupo</th><th>PDF</th><th>ECD J100</th><th>Status</th></tr>
+      <tr><td>Ativo Circulante</td><td class="td-val">${fmtBRL(b.ativoCirculante)}</td><td class="td-skip">—</td><td class="td-skip">—</td></tr>
+      <tr><td>Ativo Não-Circulante</td><td class="td-val">${fmtBRL(b.ativoNaoCirc)}</td><td class="td-skip">—</td><td class="td-skip">—</td></tr>
+      <tr style="background:#F8FAFC"><td><strong>Total Ativo</strong></td><td class="td-val"><strong>${fmtBRL(b.totalAtivo)}</strong></td><td class="td-val"><strong>${fmtBRL(R.ativoE)}</strong></td><td class="${R.ativoMatch===null?'td-skip':R.ativoMatch?'td-ok':'td-err'}">${R.ativoMatch===null?'—':R.ativoMatch?'✅ OK':'❌'}</td></tr>
+      <tr><td>Passivo Circulante</td><td class="td-val">${fmtBRL(b.passivoCirc)}</td><td class="td-skip">—</td><td class="td-skip">—</td></tr>
+      <tr><td>Passivo Não-Circulante</td><td class="td-val">${fmtBRL(b.passivoNaoCirc)}</td><td class="td-skip">—</td><td class="td-skip">—</td></tr>
+      <tr style="background:${plNeg?'#FEF2F2':'#F0FDF4'}"><td><strong>Patrimônio Líquido</strong></td><td class="td-val ${plNeg?'kpi-neg':''}"><strong>${fmtBRL(b.pl)}</strong></td><td class="td-val"><strong>${fmtBRL(R.plE)}</strong></td><td class="${R.plMatch===null?'td-skip':R.plMatch?'td-ok':'td-err'}">${R.plMatch===null?'—':R.plMatch?'✅ OK':'❌'}</td></tr>
+    </table>
+    ${plNeg?'<div class="alert-amber">⚠️ Patrimônio Líquido negativo identificado. Verificar necessidade de aporte dos sócios ou reestruturação societária.</div>':''}
+    </div>`;
+}
+
+function renderBalancete(){
+  const R=S.results;
+  if(!R.pdfBAL){document.getElementById('tab-balancete').innerHTML='<div class="card"><div class="empty-state">PDF do Balancete não carregado</div></div>';return;}
+  const bl=R.pdfBAL;
+  document.getElementById('tab-balancete').innerHTML=`
+    <div class="card"><div class="card-title">Balancete <span class="tag-pdf">PDF Domínio</span></div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Total Débitos</div><div class="kpi-value" style="font-size:14px">${fmtBRL(bl.totalDebito)}</div><div class="kpi-sub">Contas devedoras</div></div>
+      <div class="kpi"><div class="kpi-label">Total Créditos</div><div class="kpi-value" style="font-size:14px">${fmtBRL(bl.totalCredito)}</div><div class="kpi-sub">Contas credoras</div></div>
+      <div class="kpi"><div class="kpi-label">Diferença</div><div class="kpi-value ${bl.bate?'':'kpi-neg'}" style="font-size:14px">${bl.totalDebito!==null&&bl.totalCredito!==null?fmtBRL(Math.abs(bl.totalDebito-bl.totalCredito)):'—'}</div><div class="kpi-sub">${bl.bate===null?'—':bl.bate?'✅ Equilibrado':'❌ Desbalanceado'}</div></div>
+      <div class="kpi"><div class="kpi-label">Receita Bruta</div><div class="kpi-value" style="font-size:14px">${fmtBRL(bl.receitaBruta)}</div><div class="kpi-sub">vs DRE: ${bl.receitaBruta!==null&&R.rbDre!==null?(near(bl.receitaBruta,R.rbDre,5)?'✅ OK':'❌'):'—'}</div></div>
+    </div></div>`;
+}
+
+function renderImpostos(){
+  const R=S.results;
+  document.getElementById('tab-impostos').innerHTML=`
+    <div class="card"><div class="card-title">IRPJ e CSLL — DRE PDF × ECF Bloco P</div>
+    <table>
+      <tr><th>Tributo</th><th>DRE PDF</th><th>ECF</th><th>Diferença</th><th>Status</th></tr>
+      <tr><td><strong>IRPJ</strong></td><td class="td-val">${fmtBRL(R.irpjP)}</td><td class="td-val">${fmtBRL(R.irpjE)}</td>
+        <td class="td-val">${R.irpjP!==null&&R.irpjE!==null?fmtBRL(Math.abs(R.irpjP-R.irpjE)):'—'}</td>
+        <td class="${R.irpjMatch===null?'td-skip':R.irpjMatch?'td-ok':'td-err'}">${R.irpjMatch===null?'—':R.irpjMatch?'✅ OK':'❌'}</td></tr>
+      <tr><td><strong>CSLL</strong></td><td class="td-val">${fmtBRL(R.csllP)}</td><td class="td-val">${fmtBRL(R.csllE)}</td>
+        <td class="td-val">${R.csllP!==null&&R.csllE!==null?fmtBRL(Math.abs(R.csllP-R.csllE)):'—'}</td>
+        <td class="${R.csllMatch===null?'td-skip':R.csllMatch?'td-ok':'td-err'}">${R.csllMatch===null?'—':R.csllMatch?'✅ OK':'❌'}</td></tr>
+    </table>
+    <div class="alert-blue">ℹ️ Regime presumido de referência: Lucro Presumido. Para Lucro Real os valores do ECF ficam nos blocos L/M.</div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────────────
+// TABS & RESET
+// ─────────────────────────────────────────────────────
+function setTab(id){
+  ['resumo','cruzamento','dre','bp','balancete','impostos'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===id?'block':'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach((btn,i)=>{
+    btn.classList.toggle('active',['resumo','cruzamento','dre','bp','balancete','impostos'][i]===id);
+  });
+}
+
+function resetApp(){
+  Object.assign(S,{bpText:null,dreText:null,balText:null,ecdRaw:null,ecfRaw:null,results:null,
+    loaded:{bp:false,dre:false,bal:false,ecd:false,ecf:false}});
+  document.getElementById('screen-results').style.display='none';
+  document.getElementById('screen-upload').style.display='block';
+  ['bp','dre','bal','ecd','ecf'].forEach(t=>{
+    setZoneReset(t);
+    document.getElementById('input-'+t).value='';
+  });
+  document.getElementById('prog-bar').style.width='0%';
+  document.getElementById('progress-msg').textContent='Carregue ao menos a ECD e a ECF para iniciar';
+  document.getElementById('btn-analyze').disabled=true;
+  document.getElementById('btn-analyze').textContent='🔍 Analisar e Validar';
+  ['step1','step2','step3','step4','step5'].forEach((id,i)=>{
+    document.getElementById(id).className='step'+(i===0?' active':'');
+  });
+}
+</script>
+</body>
+</html>
