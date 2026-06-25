@@ -359,42 +359,97 @@ function parseSPED(raw){
 
 function parseECD(raw){
   const m=parseSPED(raw);
+
+  // 0000: [0]=LECD [1]=dtIni [2]=dtFin [3]=nome [4]=CNPJ [5]=UF ...
+  // parseSPED já remove o registro, então índice 0 = primeiro campo após o tipo
   const r0=(m['0000']||[[]])[0];
   const empresa={
-    cnpj:(r0[6]||'').replace(/\D/g,''),
-    nome:r0[5]||'',
+    cnpj:(r0[4]||'').replace(/\D/g,''),
+    nome:r0[3]||'',
     dtIni:r0[1]||'',
     dtFin:r0[2]||'',
     leiaute:r0[0]||'',
   };
 
-  const j150=(m['J150']||[]).map(f=>({
-    cod:f[0]||'',desc:(f[1]||'').toUpperCase(),nivel:parseInt(f[2]||'0'),
-    nat:f[3]||'',vlIni:parseBR(f[4])||0,vlFin:parseBR(f[5])||0
+  // J100 formato real: [0]=num [1]=tipo [2]=nivel [3]=cod_pai [4]=ind_vcc [5]=desc
+  //                    [6]=vlIni [7]=natIni [8]=vlFin [9]=natFin
+  // parseSPED remove o reg J100, então f[0]=num, f[1]=tipo, f[2]=nivel, f[3]=cod_pai
+  // f[4]=ind, f[5]=desc, f[6]=vlIni, f[7]=natIni, f[8]=vlFin, f[9]=natFin
+  const j100all=(m['J100']||[]).map(f=>({
+    num:   f[0]||'',
+    tipo:  f[1]||'',
+    nivel: parseInt(f[2]||'0'),
+    pai:   f[3]||'',
+    ind:   f[4]||'',
+    desc:  (f[5]||'').toUpperCase(),
+    vlIni: parseBR(f[6]),
+    natIni:f[7]||'',
+    vlFin: parseBR(f[8]),
+    natFin:f[9]||'',
   }));
-  const j100=(m['J100']||[]).map(f=>({
-    cod:f[0]||'',desc:(f[1]||'').toUpperCase(),nivel:parseInt(f[2]||'0'),
-    nat:f[3]||'',vlIni:parseBR(f[4])||0,vlFin:parseBR(f[5])||0
+
+  // J150 formato real: [0]=num [1]=cod [2]=tipo [3]=nivel [4]=cod_pai [5]=desc
+  //                    [6]=vlIni [7]=natIni [8]=vlFin [9]=natFin [10]=ind
+  const j150all=(m['J150']||[]).map(f=>({
+    num:   f[0]||'',
+    cod:   f[1]||'',
+    tipo:  f[2]||'',
+    nivel: parseInt(f[3]||'0'),
+    pai:   f[4]||'',
+    desc:  (f[5]||'').toUpperCase(),
+    vlIni: parseBR(f[6]),
+    natIni:f[7]||'',
+    vlFin: parseBR(f[8]),
+    natFin:f[9]||'',
+    ind:   f[10]||'',
   }));
 
-  // Receita bruta — nível 1 ou 2 crédito
-  const RB_KW=['RECEITA BRUTA','RECEITA DE VEND','RECEITA DE SERV','SERVIÇOS PRESTADOS','SERVICOS PRESTADOS','FATURAMENTO'];
-  const rbLines=j150.filter(a=>RB_KW.some(k=>a.desc.includes(k)));
-  let receitaBruta=rbLines.length>0
-    ? rbLines.reduce((s,a)=>s+(a.nat==='C'?a.vlFin:-a.vlFin),0)
-    : null;
+  // O arquivo tem múltiplos livros (trimestrais + anual)
+  // O livro ANUAL tem vlIni=0 no ATIVO total (começo do exercício zerado)
+  // Identificamos o livro anual pelo último bloco J005 com dtIni=01012025
+  // Na prática: o último J100|num=1 com pai="" é o livro anual (vlIni=vlIni_anual, vlFin=vlFin_anual)
+  // Estratégia: pegar o ÚLTIMO grupo de J100/J150 (livro anual está por último no arquivo)
 
-  // Resultado líquido
-  const RES_KW=['LUCRO LÍQUIDO','LUCRO LIQUIDO','PREJUÍZO','RESULTADO DO EXERC','RESULTADO LÍQUIDO'];
-  const resLines=j150.filter(a=>RES_KW.some(k=>a.desc.includes(k)));
-  const resultado=resLines.length>0?resLines[resLines.length-1].vlFin:null;
+  // Agrupar por livro: cada vez que num=1 reinicia, é um novo livro
+  function splitLivros(arr){
+    const livros=[];let cur=[];
+    for(const r of arr){
+      if(r.num==='1'&&cur.length>0){livros.push(cur);cur=[];}
+      cur.push(r);
+    }
+    if(cur.length>0)livros.push(cur);
+    return livros;
+  }
 
-  // Ativo e PL
+  const livrosJ100=splitLivros(j100all);
+  const livrosJ150=splitLivros(j150all);
+
+  // Último livro = anual
+  const j100=livrosJ100[livrosJ100.length-1]||[];
+  const j150=livrosJ150[livrosJ150.length-1]||[];
+
+  // Receita Bruta: J150 com desc contendo RECEITA BRUTA, vlFin crédito
+  const RB_KW=['RECEITA BRUTA','RECEITA DE VEND','RECEITA DE SERV','SERVICOS PRESTADOS','FATURAMENTO'];
+  const rbRow=j150.find(a=>RB_KW.some(k=>a.desc.includes(k)));
+  const receitaBruta=rbRow?(rbRow.natFin==='C'?rbRow.vlFin:rbRow.vlIni):null;
+
+  // Resultado: RESULTADO ANTES DO IR ou LUCRO LÍQUIDO — último nível
+  const RES_KW=['RESULTADO ANTES DO IR','LUCRO LIQUIDO','LUCRO LÍQUIDO','RESULTADO DO EXERC'];
+  const resRows=j150.filter(a=>RES_KW.some(k=>a.desc.includes(k)));
+  let resultado=null;
+  if(resRows.length>0){
+    const r=resRows[resRows.length-1];
+    // natFin D = prejuízo (negativo), C = lucro
+    resultado=r.natFin==='D'?-(r.vlFin):r.vlFin;
+  }
+
+  // Ativo total e PL: J100 nivel 1 desc ATIVO / PATRIMÔNIO
   let totalAtivo=null,totalPL=null;
   for(const r of j100){
-    if(r.nivel===1&&r.desc.includes('ATIVO')&&!r.desc.includes('PASSIVO'))totalAtivo=r.vlFin;
-    if(['PATRIMÔNIO LÍQUIDO','PATRIMONIO LIQUIDO','PATRIMÔNIO','PATRIMONIO'].some(k=>r.desc.includes(k)))
-      totalPL=r.nat==='D'?-(r.vlFin):r.vlFin;
+    if(r.nivel===1&&r.desc==='ATIVO') totalAtivo=r.vlFin;
+    if(r.nivel===2&&(r.desc.includes('PATRIM'))){
+      totalPL=r.natFin==='D'?-(r.vlFin):r.vlFin;
+    }
   }
 
   return{empresa,j150,j100,receitaBruta,resultado,totalAtivo,totalPL};
