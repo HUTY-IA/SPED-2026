@@ -361,8 +361,8 @@ function parseECD(raw){
   const m=parseSPED(raw);
   const r0=(m['0000']||[[]])[0];
   const empresa={
-    cnpj:(r0[3]||'').replace(/\D/g,''),
-    nome:r0[4]||'',
+    cnpj:(r0[6]||'').replace(/\D/g,''),
+    nome:r0[5]||'',
     dtIni:r0[1]||'',
     dtFin:r0[2]||'',
     leiaute:r0[0]||'',
@@ -406,17 +406,66 @@ function parseECF(raw){
   const empresa={
     cnpj:(r0[2]||'').replace(/\D/g,''),
     nome:r0[3]||'',
-    dtIni:r0[8]||'',
-    dtFin:r0[9]||'',
+    dtIni:r0[9]||'',
+    dtFin:r0[10]||'',
     leiaute:r0[0]||'',
   };
-  const p100=(m['P100']||[]).map(f=>({vlRec:parseBR(f[2])||0}));
-  const receitaBruta=p100.length>0?p100.reduce((s,r)=>s+r.vlRec,0):null;
-  const p150=(m['P150']||[[]])[0]||[];
-  const p200=(m['P200']||[[]])[0]||[];
-  const irpj=parseBR(p150[10]||p150[9])||null;
-  const csll=parseBR(p200[10]||p200[9])||null;
-  return{empresa,receitaBruta,irpj,csll};
+
+  // P100 = Plano de Contas (Balanço ECF)
+  // Ativo total: cod="1", nivel=1, nat="01"
+  // PL: cod="2.03", nivel=2
+  const p100rows=(m['P100']||[]);
+  let totalAtivo=null, totalPL=null;
+  for(const f of p100rows){
+    const cod=f[0]||'';
+    const nivel=parseInt(f[3]||'0');
+    const vlFin=parseBR(f[11]);
+    const nat=f[9]||'';
+    if(cod==='1'&&nivel===1) totalAtivo=vlFin;
+    if(cod==='2.03'&&nivel===2) totalPL=(nat==='D'?-(vlFin):vlFin);
+  }
+
+  // Receita Bruta Lucro Presumido: P150 (base de cálculo trimestral)
+  // P150: |P150|TRIM|DT_INI|DT_FIN|REC_BRUTA|...|
+  const p150rows=(m['P150']||[]);
+  let receitaBruta=null;
+  if(p150rows.length>0){
+    // Soma campo [4] (REC_BRUTA) de todos os trimestres
+    const rb=p150rows.reduce((s,f)=>{const v=parseBR(f[4]);return s+(v||0);},0);
+    if(rb>0) receitaBruta=rb;
+  }
+
+  // Y570: DRE da ECF — receita bruta no campo [3] para tipo "RB"
+  if(!receitaBruta){
+    const y570rows=(m['Y570']||[]);
+    const rbRow=y570rows.find(f=>(f[0]||'').toUpperCase().includes('RECEITA BRUTA')||(f[1]||'').toUpperCase().includes('RB'));
+    if(rbRow) receitaBruta=parseBR(rbRow[2]||rbRow[3]);
+  }
+
+  // IRPJ e CSLL do P150 (Lucro Presumido)
+  // P150: campo [14]=IRPJ devido, campo [15]=IRPJ adicional
+  // Soma total por trimestre
+  let irpj=null, csll=null;
+  if(p150rows.length>0){
+    const irpjTotal=p150rows.reduce((s,f)=>{
+      const v1=parseBR(f[14])||0;
+      const v2=parseBR(f[15])||0;
+      return s+v1+v2;
+    },0);
+    if(irpjTotal>0) irpj=irpjTotal;
+  }
+
+  // P200: CSLL Lucro Presumido
+  const p200rows=(m['P200']||[]);
+  if(p200rows.length>0){
+    const csllTotal=p200rows.reduce((s,f)=>{
+      const v=parseBR(f[10]||f[9])||0;
+      return s+v;
+    },0);
+    if(csllTotal>0) csll=csllTotal;
+  }
+
+  return{empresa,receitaBruta,irpj,csll,totalAtivo,totalPL};
 }
 
 // ─────────────────────────────────────────────────────
