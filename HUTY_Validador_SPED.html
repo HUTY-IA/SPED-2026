@@ -241,7 +241,7 @@ function parseBR(v){
 }
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function fmtCNPJ(c){const d=(c||'').replace(/\D/g,'');return d.length===14?`${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`:c||'—';}
-function fmtDate(dt){const d=(dt||'').replace(/\D/g,'');return d.length===8?`${d.slice(6)}/${d.slice(4,6)}/${d.slice(0,4)}`:dt||'—';}
+function fmtDate(dt){const d=(dt||'').replace(/\D/g,'');return d.length===8?`${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`:dt||'—';}
 
 function pill(ok){
   if(ok===null||ok===undefined)return'<span style="background:#F3F4F6;color:#9CA3AF;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:700">N/D</span>';
@@ -346,10 +346,13 @@ function parseBalancete(txt){
 // ─────────────────────────────────────────────────────
 function parseSPED(raw){
   const map={};
-  for(const line of raw.split(/\r?\n/)){
+  // Normaliza CRLF e CR para LF, remove BOM se existir
+  const txt=raw.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  for(const line of txt.split('\n')){
     const t=line.trim();
-    if(!t.startsWith('|'))continue;
+    if(!t||!t.startsWith('|'))continue;
     const p=t.split('|');
+    // p[0]='' (vazio antes do primeiro |), p[1]=registro, p[2..]=campos
     const reg=p[1];
     if(!reg)continue;
     (map[reg]=map[reg]||[]).push(p.slice(2));
@@ -360,8 +363,7 @@ function parseSPED(raw){
 function parseECD(raw){
   const m=parseSPED(raw);
 
-  // 0000: [0]=LECD [1]=dtIni [2]=dtFin [3]=nome [4]=CNPJ [5]=UF ...
-  // parseSPED já remove o registro, então índice 0 = primeiro campo após o tipo
+  // 0000 campos (após split): [0]=LECD [1]=dtIni(DDMMAAAA) [2]=dtFin [3]=nome [4]=CNPJ
   const r0=(m['0000']||[[]])[0];
   const empresa={
     cnpj:(r0[4]||'').replace(/\D/g,''),
@@ -371,46 +373,24 @@ function parseECD(raw){
     leiaute:r0[0]||'',
   };
 
-  // J100 formato real: [0]=num [1]=tipo [2]=nivel [3]=cod_pai [4]=ind_vcc [5]=desc
-  //                    [6]=vlIni [7]=natIni [8]=vlFin [9]=natFin
-  // parseSPED remove o reg J100, então f[0]=num, f[1]=tipo, f[2]=nivel, f[3]=cod_pai
-  // f[4]=ind, f[5]=desc, f[6]=vlIni, f[7]=natIni, f[8]=vlFin, f[9]=natFin
+  // J100: [0]=num [1]=tipo [2]=nivel [3]=pai [4]=ind [5]=desc [6]=vlIni [7]=natIni [8]=vlFin [9]=natFin
   const j100all=(m['J100']||[]).map(f=>({
-    num:   f[0]||'',
-    tipo:  f[1]||'',
-    nivel: parseInt(f[2]||'0'),
-    pai:   f[3]||'',
-    ind:   f[4]||'',
-    desc:  (f[5]||'').toUpperCase(),
-    vlIni: parseBR(f[6]),
-    natIni:f[7]||'',
-    vlFin: parseBR(f[8]),
-    natFin:f[9]||'',
+    num:f[0]||'',nivel:parseInt(f[2]||'0'),pai:f[3]||'',
+    desc:(f[5]||'').toUpperCase(),
+    vlIni:parseBR(f[6]),natIni:f[7]||'',
+    vlFin:parseBR(f[8]),natFin:f[9]||'',
   }));
 
-  // J150 formato real: [0]=num [1]=cod [2]=tipo [3]=nivel [4]=cod_pai [5]=desc
-  //                    [6]=vlIni [7]=natIni [8]=vlFin [9]=natFin [10]=ind
+  // J150: [0]=num [1]=cod [2]=tipo [3]=nivel [4]=pai [5]=desc [6]=vlIni [7]=natIni [8]=vlFin [9]=natFin
   const j150all=(m['J150']||[]).map(f=>({
-    num:   f[0]||'',
-    cod:   f[1]||'',
-    tipo:  f[2]||'',
-    nivel: parseInt(f[3]||'0'),
-    pai:   f[4]||'',
-    desc:  (f[5]||'').toUpperCase(),
-    vlIni: parseBR(f[6]),
-    natIni:f[7]||'',
-    vlFin: parseBR(f[8]),
-    natFin:f[9]||'',
-    ind:   f[10]||'',
+    num:f[0]||'',cod:f[1]||'',
+    nivel:parseInt(f[3]||'0'),pai:f[4]||'',
+    desc:(f[5]||'').toUpperCase(),
+    vlIni:parseBR(f[6]),natIni:f[7]||'',
+    vlFin:parseBR(f[8]),natFin:f[9]||'',
   }));
 
-  // O arquivo tem múltiplos livros (trimestrais + anual)
-  // O livro ANUAL tem vlIni=0 no ATIVO total (começo do exercício zerado)
-  // Identificamos o livro anual pelo último bloco J005 com dtIni=01012025
-  // Na prática: o último J100|num=1 com pai="" é o livro anual (vlIni=vlIni_anual, vlFin=vlFin_anual)
-  // Estratégia: pegar o ÚLTIMO grupo de J100/J150 (livro anual está por último no arquivo)
-
-  // Agrupar por livro: cada vez que num=1 reinicia, é um novo livro
+  // Separar livros: cada vez que num='1' reinicia é um novo livro
   function splitLivros(arr){
     const livros=[];let cur=[];
     for(const r of arr){
@@ -421,36 +401,30 @@ function parseECD(raw){
     return livros;
   }
 
-  const livrosJ100=splitLivros(j100all);
-  const livrosJ150=splitLivros(j150all);
+  // Livro anual = último (5º: 01/01 a 31/12)
+  const j100=(splitLivros(j100all).pop())||[];
+  const j150=(splitLivros(j150all).pop())||[];
 
-  // Último livro = anual
-  const j100=livrosJ100[livrosJ100.length-1]||[];
-  const j150=livrosJ150[livrosJ150.length-1]||[];
-
-  // Receita Bruta: J150 com desc contendo RECEITA BRUTA, vlFin crédito
-  const RB_KW=['RECEITA BRUTA','RECEITA DE VEND','RECEITA DE SERV','SERVICOS PRESTADOS','FATURAMENTO'];
-  const rbRow=j150.find(a=>RB_KW.some(k=>a.desc.includes(k)));
+  // Receita Bruta: linha com RECEITA BRUTA, vlFin crédito
+  const rbRow=j150.find(a=>a.desc==='RECEITA BRUTA'||a.desc.includes('RECEITA BRUTA'));
   const receitaBruta=rbRow?(rbRow.natFin==='C'?rbRow.vlFin:rbRow.vlIni):null;
 
-  // Resultado: RESULTADO ANTES DO IR ou LUCRO LÍQUIDO — último nível
-  const RES_KW=['RESULTADO ANTES DO IR','LUCRO LIQUIDO','LUCRO LÍQUIDO','RESULTADO DO EXERC'];
-  const resRows=j150.filter(a=>RES_KW.some(k=>a.desc.includes(k)));
+  // Resultado: linha nível 1 (LUCRO/PREJUÍZO DO EXERCÍCIO) ou RESULTADO ANTES DO IR
+  const resRow=j150.find(a=>a.nivel===1)||
+    j150.find(a=>a.desc.includes('RESULTADO ANTES DO IR'))||
+    j150.find(a=>a.desc.includes('LUCRO')&&a.nivel<=3);
   let resultado=null;
-  if(resRows.length>0){
-    const r=resRows[resRows.length-1];
-    // natFin D = prejuízo (negativo), C = lucro
-    resultado=r.natFin==='D'?-(r.vlFin):r.vlFin;
+  if(resRow){
+    resultado=resRow.natFin==='D'?-(resRow.vlFin):resRow.vlFin;
   }
 
-  // Ativo total e PL: J100 nivel 1 desc ATIVO / PATRIMÔNIO
+  // Ativo total: J100 nivel=1 desc='ATIVO', pai=''
   let totalAtivo=null,totalPL=null;
-  for(const r of j100){
-    if(r.nivel===1&&r.desc==='ATIVO') totalAtivo=r.vlFin;
-    if(r.nivel===2&&(r.desc.includes('PATRIM'))){
-      totalPL=r.natFin==='D'?-(r.vlFin):r.vlFin;
-    }
-  }
+  const ativoRow=j100.find(r=>r.nivel===1&&r.desc==='ATIVO');
+  if(ativoRow) totalAtivo=ativoRow.vlFin;
+
+  const plRow=j100.find(r=>r.nivel===2&&r.desc.includes('PATRIM'));
+  if(plRow) totalPL=plRow.natFin==='D'?-(plRow.vlFin):plRow.vlFin;
 
   return{empresa,j150,j100,receitaBruta,resultado,totalAtivo,totalPL};
 }
@@ -555,9 +529,24 @@ async function loadPDF(tipo,input){
 
 function loadSPED(tipo,input){
   const file=input.files[0];if(!file)return;
+  // Tentar ISO-8859-1 (padrão SPED) e fallback UTF-8
   const r=new FileReader();
   r.onload=ev=>{
-    S[tipo+'Raw']=ev.target.result;
+    let txt=ev.target.result;
+    // Verificar se parsing funcionou checando se tem registros SPED
+    if(!txt.includes('|0000|')){
+      // Tentar UTF-8
+      const r2=new FileReader();
+      r2.onload=ev2=>{
+        S[tipo+'Raw']=ev2.target.result;
+        S.loaded[tipo]=true;
+        setZoneDone(tipo,file.name,'loaded-sped');
+        updateProgress();
+      };
+      r2.readAsText(file,'UTF-8');
+      return;
+    }
+    S[tipo+'Raw']=txt;
     S.loaded[tipo]=true;
     setZoneDone(tipo,file.name,'loaded-sped');
     updateProgress();
