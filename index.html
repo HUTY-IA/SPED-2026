@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Validador SPED — ECD × ECF</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#EFF2F7;min-height:100vh}
+    /* ── Layout ── */
+    #header{background:#0D1B2A;color:#fff;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+    #header-title{font-size:19px;font-weight:700;letter-spacing:.4px}
+    #header-sub{font-size:13px;color:#8BA3BC;margin-top:3px}
+    #header-right{display:flex;align-items:center;gap:12px}
+    #empresa-bar{background:#1A3050;color:#fff;padding:10px 28px;display:flex;gap:36px;flex-wrap:wrap;font-size:13px}
+    #empresa-bar span{color:#8BA3BC;margin-right:4px}
+    #content{max-width:1100px;margin:0 auto;padding:22px 16px}
+    /* ── Cards ── */
+    .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:16px}
+    .card-title{font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #EFF2F7}
+    /* ── Status Badge ── */
+    .badge{padding:5px 14px;border-radius:100px;font-size:13px;font-weight:700}
+    .badge-ok{background:#DCFCE7;color:#15803D}
+    .badge-err{background:#FEE2E2;color:#B91C1C}
+    .pill{display:inline-block;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:700}
+    .pill-ok{background:#DCFCE7;color:#16A34A}
+    .pill-err{background:#FEE2E2;color:#DC2626}
+    /* ── KPI Grid ── */
+    .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+    .kpi{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+    .kpi-label{font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+    .kpi-value{font-size:22px;font-weight:800}
+    .kpi-sub{font-size:12px;color:#6B7280;margin-top:4px}
+    /* ── Tabs ── */
+    #tab-bar{display:flex;gap:4px;margin-bottom:16px;background:#E2E8F0;padding:4px;border-radius:10px;overflow-x:auto}
+    .tab-btn{padding:8px 14px;border:none;background:transparent;color:#6B7280;border-radius:7px;cursor:pointer;font-weight:600;font-size:13px;white-space:nowrap;transition:all .15s}
+    .tab-btn.active{background:#0D1B2A;color:#fff}
+    /* ── Tables ── */
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{padding:8px 10px;background:#F8FAFC;color:#6B7280;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #E5E7EB}
+    th.r{text-align:right}
+    td{padding:8px 10px;border-bottom:1px solid #F3F4F6;color:#374151}
+    td.r{text-align:right;font-variant-numeric:tabular-nums}
+    td.mono{font-family:monospace;font-size:11px;color:#9CA3AF}
+    tr.rb-row{background:#FFFBEB}
+    tr.total-row{background:#F8FAFC;font-weight:800}
+    /* ── Upload ── */
+    .upload-zone{border:2px dashed #CBD5E1;border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;transition:all .2s;background:#F8FAFC;display:block}
+    .upload-zone.loaded{border-color:#16A34A;background:#F0FDF4}
+    .upload-zone:hover{border-color:#0D1B2A;background:#F1F5F9}
+    .upload-icon{font-size:32px;margin-bottom:8px}
+    .upload-label{font-size:14px;font-weight:600;color:#374151}
+    .upload-sub{font-size:12px;color:#9CA3AF;margin-top:4px}
+    .upload-filename{font-size:13px;font-weight:600;color:#16A34A;word-break:break-all}
+    /* ── Button ── */
+    .btn-primary{background:#0D1B2A;color:#fff;border:none;padding:13px 40px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:opacity .15s}
+    .btn-primary:disabled{background:#94A3B8;cursor:not-allowed}
+    .btn-outline{background:transparent;border:1px solid #4A6580;color:#8BA3BC;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+    /* ── Grid ── */
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    /* ── Alerts ── */
+    .alert-amber{padding:11px 14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;font-size:12px;color:#92400E;margin-top:14px}
+    .alert-red{background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:16px;margin-top:14px}
+    .alert-green{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px;margin-top:14px}
+    /* ── Checklist ── */
+    .check-row{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid #F3F4F6}
+    .check-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+    .check-label{font-size:14px;font-weight:600;color:#111827}
+    .check-detail{font-size:13px;color:#6B7280;margin-top:2px}
+    .check-detail.bad{color:#DC2626}
+    /* ── Verdict ── */
+    .verdict{padding:16px;border-radius:8px;margin-top:16px;font-size:15px;font-weight:700}
+    .verdict.ok{background:#F0FDF4;border:1px solid #BBF7D0;color:#15803D}
+    .verdict.bad{background:#FEF2F2;border:1px solid #FECACA;color:#B91C1C}
+    /* ── Navy card ── */
+    .card-navy{background:#0D1B2A;color:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+    /* ── Period chips ── */
+    .chip{padding:6px 14px;background:#EFF6FF;border-radius:7px;font-size:13px;color:#1D4ED8;font-weight:600;display:inline-block;margin:3px}
+    /* ── Side headers ── */
+    .side-header-blue{font-size:13px;font-weight:700;padding:8px 12px;background:#EFF6FF;border-radius:7px;margin-bottom:12px;color:#1D4ED8}
+    .side-header-green{font-size:13px;font-weight:700;padding:8px 12px;background:#F0FDF4;border-radius:7px;margin-bottom:12px;color:#16A34A}
+    /* ── Total carga ── */
+    #carga-total{background:#0D1B2A;border-radius:12px;padding:20px;color:#fff;display:flex;justify-content:space-between;align-items:center}
+    /* ── Responsive ── */
+    @media(max-width:700px){
+      .kpi-grid{grid-template-columns:1fr}
+      .grid2{grid-template-columns:1fr}
+      #empresa-bar{gap:16px}
+      #carga-total{flex-direction:column;gap:12px;text-align:center}
+    }
+  </style>
+</head>
+<body>
+
+<!-- UPLOAD SCREEN -->
+<div id="screen-upload">
+  <div id="header">
+    <div>
+      <div id="header-title">⚖️ VALIDADOR SPED</div>
+      <div id="header-sub">Conferência ECD × ECF — Lucro Presumido · Leiaute ECD 9 / ECF 12</div>
+    </div>
+  </div>
+
+  <div style="max-width:760px;margin:0 auto;padding:28px 16px">
+    <div class="card">
+      <div class="card-title">📂 Carregar Arquivos SPED</div>
+      <div class="grid2">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">Arquivo ECD (.txt)</div>
+          <label class="upload-zone" id="zone-ecd" for="input-ecd">
+            <input type="file" accept=".txt" id="input-ecd" style="display:none" onchange="loadFile('ecd',this)"/>
+            <div class="upload-icon">📒</div>
+            <div class="upload-label" id="label-ecd">Clique para selecionar</div>
+            <div class="upload-sub" id="sub-ecd">ECD exportada pelo SPED</div>
+          </label>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">Arquivo ECF (.txt)</div>
+          <label class="upload-zone" id="zone-ecf" for="input-ecf">
+            <input type="file" accept=".txt" id="input-ecf" style="display:none" onchange="loadFile('ecf',this)"/>
+            <div class="upload-icon">📊</div>
+            <div class="upload-label" id="label-ecf">Clique para selecionar</div>
+            <div class="upload-sub" id="sub-ecf">ECF exportada pelo SPED</div>
+          </label>
+        </div>
+      </div>
+      <div style="margin-top:22px;text-align:center">
+        <button class="btn-primary" id="btn-analyze" disabled onclick="analyze()">
+          🔍&nbsp; Analisar e Validar
+        </button>
+      </div>
+      <div class="alert-amber" style="margin-top:16px">
+        🔒 <strong>Processamento 100% local.</strong> Nenhum arquivo é enviado para servidores externos. Tudo roda no seu navegador.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔍 Validações Realizadas</div>
+      <div id="checklist-preview"></div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS SCREEN -->
+<div id="screen-results" style="display:none">
+  <div id="header">
+    <div>
+      <div id="header-title">⚖️ VALIDADOR SPED</div>
+      <div id="header-sub" id="res-empresa-nome"></div>
+    </div>
+    <div id="header-right">
+      <span class="badge" id="res-badge"></span>
+      <button class="btn-outline" onclick="reset()">Nova Análise</button>
+    </div>
+  </div>
+  <div id="empresa-bar" style="display:none"></div>
+
+  <div id="content">
+    <div id="tab-bar">
+      <button class="tab-btn active" onclick="setTab('resumo')">📋 Resumo</button>
+      <button class="tab-btn" onclick="setTab('receita')">💰 Receita Bruta</button>
+      <button class="tab-btn" onclick="setTab('dre')">📒 DRE (ECD)</button>
+      <button class="tab-btn" onclick="setTab('ecf')">📊 ECF Bloco P</button>
+      <button class="tab-btn" onclick="setTab('impostos')">🧾 IRPJ / CSLL</button>
+    </div>
+    <div id="tab-resumo"></div>
+    <div id="tab-receita" style="display:none"></div>
+    <div id="tab-dre" style="display:none"></div>
+    <div id="tab-ecf" style="display:none"></div>
+    <div id="tab-impostos" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// ESTADO GLOBAL
+// ─────────────────────────────────────────────────────────────
+const STATE = { ecdRaw: null, ecfRaw: null, results: null };
+
+// ─────────────────────────────────────────────────────────────
+// UTILITÁRIOS
+// ─────────────────────────────────────────────────────────────
+function fmtBRL(v) {
+  return new Intl.NumberFormat('pt-BR', {style:'currency',currency:'BRL'}).format(v||0);
+}
+function fmtDate(dt) {
+  const d = (dt||'').replace(/\D/g,'');
+  return d.length===8 ? d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4) : dt||'—';
+}
+function fmtCNPJ(c) {
+  const d = (c||'').replace(/\D/g,'');
+  return d.length===14 ? d.slice(0,2)+'.'+d.slice(2,5)+'.'+d.slice(5,8)+'/'+d.slice(8,12)+'-'+d.slice(12) : c||'—';
+}
+function parseBR(v) {
+  if (!v) return 0;
+  return parseFloat((v+'').replace(/\./g,'').replace(',','.'))||0;
+}
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─────────────────────────────────────────────────────────────
+// PARSER SPED GENÉRICO
+// ─────────────────────────────────────────────────────────────
+function parseSPED(content) {
+  const map = {};
+  const lines = content.split(/\r?\n/);
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t.startsWith('|')) continue;
+    const p = t.split('|');
+    const reg = p[1];
+    if (!reg) continue;
+    if (!map[reg]) map[reg] = [];
+    map[reg].push(p.slice(2));
+  }
+  return map;
+}
+
+// ─────────────────────────────────────────────────────────────
+// PARSER ECD (Leiaute 9)
+// ─────────────────────────────────────────────────────────────
+function parseECD(content) {
+  const r = parseSPED(content);
+  const id = r['0000']?.[0] || [];
+  const empresa = {
+    leiaute: id[0]||'', dtIni: id[1]||'', dtFin: id[2]||'',
+    nome: id[3]||'', cnpj: id[4]||'', uf: id[5]||''
+  };
+  const j150 = (r['J150']||[]).map(f=>({
+    cod: f[0]||'', desc: f[1]||'', agl: f[2]||'',
+    vl: parseBR(f[3]), dc: (f[4]||'').trim()
+  }));
+  const j100 = (r['J100']||[]).map(f=>({
+    cod: f[0]||'', desc: f[1]||'', agl: f[2]||'',
+    vl: parseBR(f[3]), dc: (f[4]||'').trim()
+  }));
+  const RB_KW = ['RECEITA BRUTA','RECEITAS BRUTAS','RECEITA DE VEND','RECEITA DE SERV','FATURAMENTO BRUTO'];
+  const rbLines = j150.filter(a => RB_KW.some(k => a.desc.toUpperCase().includes(k)));
+  const autoDetected = rbLines.length > 0;
+  const receitaBruta = autoDetected
+    ? rbLines.reduce((s,a)=>s+a.vl,0)
+    : j150.filter(a=>a.dc==='C').reduce((s,a)=>s+a.vl,0);
+  const rbSet = new Set(rbLines.map((_,i)=>i));
+  return { empresa, j150, j100, rbLines, rbSet, receitaBruta, autoDetected };
+}
+
+// ─────────────────────────────────────────────────────────────
+// PARSER ECF (Leiaute 12)
+// ─────────────────────────────────────────────────────────────
+function parseECF(content) {
+  const r = parseSPED(content);
+  const id = r['0000']?.[0] || [];
+  const empresa = {
+    leiaute: id[0]||'', dtIni: id[1]||'', dtFin: id[2]||'',
+    nome: id[3]||'', cnpj: id[4]||''
+  };
+  const p030 = (r['P030']||[]).map(f=>({ dtIni: f[0]||'', dtFin: f[1]||'' }));
+  const p100 = (r['P100']||[]).map(f=>({
+    tipAtiv: f[0]||'', vlRec: parseBR(f[1]), perc: parseBR(f[2]),
+    vlBaseEst: parseBR(f[3]), vlBase: parseBR(f[4])
+  }));
+  const p150 = (r['P150']||[]).map(f=>({
+    vlBase: parseBR(f[0]), aliq: parseBR(f[1]), vlIrpj: parseBR(f[2])
+  }));
+  const p200 = (r['P200']||[]).map(f=>({
+    tipAtiv: f[0]||'', vlRec: parseBR(f[1]), perc: parseBR(f[2]), vlBase: parseBR(f[4])
+  }));
+  const p250 = (r['P250']||[]).map(f=>({
+    vlBase: parseBR(f[0]), aliq: parseBR(f[1]), vlCsll: parseBR(f[2])
+  }));
+  const receitaBruta = p100.reduce((s,p)=>s+p.vlRec,0);
+  const irpjTotal    = p150.reduce((s,p)=>s+p.vlIrpj,0);
+  const csllTotal    = p250.reduce((s,p)=>s+p.vlCsll,0);
+  const baseIrpj     = p150.reduce((s,p)=>s+p.vlBase,0);
+  const baseCsll     = p250.reduce((s,p)=>s+p.vlBase,0);
+  return { empresa, p030, p100, p150, p200, p250,
+           receitaBruta, irpjTotal, csllTotal, baseIrpj, baseCsll };
+}
+
+// ─────────────────────────────────────────────────────────────
+// CARREGAMENTO DE ARQUIVO
+// ─────────────────────────────────────────────────────────────
+function loadFile(tipo, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    STATE[tipo+'Raw'] = e.target.result;
+    const zone  = document.getElementById('zone-'+tipo);
+    const label = document.getElementById('label-'+tipo);
+    const sub   = document.getElementById('sub-'+tipo);
+    zone.classList.add('loaded');
+    zone.querySelector('.upload-icon').textContent = '✅';
+    label.textContent = file.name;
+    label.style.color = '#16A34A';
+    sub.textContent = 'Clique para trocar';
+    if (STATE.ecdRaw && STATE.ecfRaw) {
+      document.getElementById('btn-analyze').disabled = false;
+    }
+  };
+  reader.readAsText(file, 'ISO-8859-1');
+}
+
+// ─────────────────────────────────────────────────────────────
+// ANÁLISE PRINCIPAL
+// ─────────────────────────────────────────────────────────────
+function analyze() {
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  btn.textContent = '⏳  Processando...';
+  setTimeout(function() {
+    try {
+      const ecd = parseECD(STATE.ecdRaw);
+      const ecf = parseECF(STATE.ecfRaw);
+      const diff    = Math.abs(ecd.receitaBruta - ecf.receitaBruta);
+      const pct     = ecf.receitaBruta > 0 ? (diff / ecf.receitaBruta) * 100 : 0;
+      const rbMatch = diff < 1.0;
+      const cnpjMatch = ecd.empresa.cnpj.replace(/\D/g,'') === ecf.empresa.cnpj.replace(/\D/g,'');
+      const perMatch  = ecd.empresa.dtIni === ecf.empresa.dtIni && ecd.empresa.dtFin === ecf.empresa.dtFin;
+      const hasP = ecf.p100.length > 0;
+      const hasJ = ecd.j150.length > 0;
+      STATE.results = { ecd, ecf, diff, pct, rbMatch, cnpjMatch, perMatch, hasP, hasJ };
+      renderResults();
+    } catch(err) {
+      alert('Erro ao processar arquivos: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = '🔍  Analisar e Validar';
+    }
+  }, 80);
+}
+
+// ─────────────────────────────────────────────────────────────
+// RENDERIZAR RESULTADOS
+// ─────────────────────────────────────────────────────────────
+function renderResults() {
+  const { ecd, ecf, diff, pct, rbMatch, cnpjMatch, perMatch, hasP, hasJ } = STATE.results;
+  const allOk = rbMatch && cnpjMatch && perMatch && hasP && hasJ;
+
+  document.getElementById('screen-upload').style.display = 'none';
+  document.getElementById('screen-results').style.display = 'block';
+
+  // Header
+  document.querySelector('#screen-results #header-sub').textContent =
+    ecd.empresa.nome || ecf.empresa.nome || '—';
+  const badge = document.getElementById('res-badge');
+  badge.textContent = allOk ? '✓ CONFERE' : '✕ DIVERGÊNCIA';
+  badge.className = 'badge ' + (allOk ? 'badge-ok' : 'badge-err');
+
+  // Empresa bar
+  const bar = document.getElementById('empresa-bar');
+  bar.style.display = 'flex';
+  bar.innerHTML =
+    '<div><span>CNPJ </span><strong>'+fmtCNPJ(ecd.empresa.cnpj)+'</strong></div>'+
+    '<div><span>ECD </span><strong>'+fmtDate(ecd.empresa.dtIni)+' – '+fmtDate(ecd.empresa.dtFin)+'</strong></div>'+
+    '<div><span>ECF </span><strong>'+fmtDate(ecf.empresa.dtIni)+' – '+fmtDate(ecf.empresa.dtFin)+'</strong></div>'+
+    '<div><span>Leiaute ECD </span><strong>'+esc(ecd.empresa.leiaute)+'</strong></div>'+
+    '<div><span>Leiaute ECF </span><strong>'+esc(ecf.empresa.leiaute)+'</strong></div>';
+
+  renderResumo();
+  renderReceita();
+  renderDRE();
+  renderECF();
+  renderImpostos();
+  setTab('resumo');
+}
+
+// ─────────────────────────────────────────────────────────────
+// TAB: RESUMO
+// ─────────────────────────────────────────────────────────────
+function renderResumo() {
+  const { ecd, ecf, diff, pct, rbMatch, cnpjMatch, perMatch, hasP, hasJ } = STATE.results;
+  const allOk = rbMatch && cnpjMatch && perMatch && hasP && hasJ;
+
+  const borderColor = c => c ? '#16A34A' : '#DC2626';
+  const kpis = [
+    { label:'RECEITA BRUTA — ECD', val: fmtBRL(ecd.receitaBruta),
+      sub: 'J150 · '+ecd.j150.length+' contas', ok: rbMatch },
+    { label:'RECEITA BRUTA — ECF', val: fmtBRL(ecf.receitaBruta),
+      sub: 'P100 · '+ecf.p100.length+' registros', ok: rbMatch },
+    { label:'DIFERENÇA', val: fmtBRL(diff),
+      sub: pct.toFixed(4)+'% de variação', ok: rbMatch },
+  ];
+
+  let kpiHtml = '<div class="kpi-grid">';
+  kpis.forEach(k => {
+    kpiHtml += '<div class="kpi" style="border-top:3px solid '+borderColor(k.ok)+'">'+
+      '<div class="kpi-label">'+esc(k.label)+'</div>'+
+      '<div class="kpi-value" style="color:'+(k.label==='DIFERENÇA'&&!k.ok?'#DC2626':'#0D1B2A')+'">'+k.val+'</div>'+
+      '<div class="kpi-sub">'+esc(k.sub)+'</div></div>';
+  });
+  kpiHtml += '</div>';
+
+  const checks = [
+    [cnpjMatch, 'CNPJ idêntico nos dois arquivos',
+     'ECD: '+fmtCNPJ(ecd.empresa.cnpj)+'  |  ECF: '+fmtCNPJ(ecf.empresa.cnpj)],
+    [perMatch, 'Período de competência coincidente',
+     'ECD: '+fmtDate(ecd.empresa.dtIni)+'–'+fmtDate(ecd.empresa.dtFin)+'  |  ECF: '+fmtDate(ecf.empresa.dtIni)+'–'+fmtDate(ecf.empresa.dtFin)],
+    [rbMatch, 'Receita Bruta ECD × ECF (tolerância R$ 1,00)',
+     rbMatch ? 'Diferença de '+fmtBRL(diff)+' — dentro da tolerância' : '⚠ DIVERGÊNCIA de '+fmtBRL(diff)+' ('+pct.toFixed(2)+'%)'],
+    [hasP, 'Registros P100 encontrados na ECF',
+     hasP ? ecf.p100.length+' registro(s) — Lucro Presumido confirmado' : 'Nenhum P100 — verifique a forma de tributação'],
+    [hasJ, 'Registros J150 encontrados na ECD',
+     hasJ ? ecd.j150.length+' conta(s) na DRE' : 'Nenhum J150 — verifique o arquivo ECD'],
+    [ecd.autoDetected, 'Receita Bruta identificada automaticamente no J150',
+     ecd.autoDetected ? ecd.rbLines.length+' conta(s) com "Receita Bruta" na descrição' : 'Não identificada — verifique a aba DRE e ajuste manualmente'],
+  ];
+
+  let checkHtml = '<div class="card"><div class="card-title">📋 Checklist de Validação</div>';
+  checks.forEach(([ok, label, detail]) => {
+    checkHtml += '<div class="check-row">'+
+      '<div class="check-icon">'+(ok?'✅':'❌')+'</div>'+
+      '<div style="flex:1">'+
+        '<div class="check-label">'+esc(label)+'</div>'+
+        '<div class="check-detail'+(ok?'':' bad')+'">'+esc(detail)+'</div>'+
+      '</div>'+
+      '<span class="pill '+(ok?'pill-ok':'pill-err')+'">'+(ok?'OK':'ATENÇÃO')+'</span>'+
+    '</div>';
+  });
+  checkHtml += '</div>';
+
+  let alertHtml = '';
+  if (!allOk) {
+    let msgs = [];
+    if (!cnpjMatch) msgs.push('• CNPJs divergentes — confirme que os dois arquivos são da mesma empresa.');
+    if (!perMatch)  msgs.push('• Períodos divergentes — confirme que ECD e ECF são do mesmo exercício fiscal.');
+    if (!rbMatch)   msgs.push('• Divergência de '+fmtBRL(diff)+' na Receita Bruta. Verifique: (1) receitas não contabilizadas na ECD; (2) registros P100 incompletos; (3) receitas isentas excluídas da presunção.');
+    if (!hasP)      msgs.push('• Sem registros P100 — confirme que esta empresa é Lucro Presumido.');
+    if (!hasJ)      msgs.push('• Sem registros J150 — o arquivo ECD pode estar incompleto.');
+    alertHtml = '<div class="alert-red"><div style="font-size:14px;font-weight:700;color:#991B1B;margin-bottom:8px">⚠️ Ações Recomendadas</div>'+
+      '<div style="font-size:13px;color:#B91C1C;line-height:1.8">'+msgs.map(esc).join('<br>')+'</div></div>';
+  }
+
+  document.getElementById('tab-resumo').innerHTML = kpiHtml + checkHtml + alertHtml;
+}
+
+// ─────────────────────────────────────────────────────────────
+// TAB: RECEITA BRUTA
+// ─────────────────────────────────────────────────────────────
+function renderReceita() {
+  const { ecd, ecf, diff, pct, rbMatch } = STATE.results;
+
+  let rbRowsEcd = '';
+  ecd.rbLines.forEach(a => {
+    rbRowsEcd += '<tr><td class="mono">'+esc(a.cod)+'</td><td>'+esc(a.desc)+'</td><td class="r">'+fmtBRL(a.vl)+'</td></tr>';
+  });
+
+  let rbRowsEcf = '';
+  ecf.p100.forEach(p => {
+    rbRowsEcf += '<tr><td>'+esc(p.tipAtiv||'—')+'</td><td class="r">'+fmtBRL(p.vlRec)+'</td>'+
+      '<td class="r">'+p.perc+'%</td><td class="r">'+fmtBRL(p.vlBase)+'</td></tr>';
+  });
+  if (ecf.p100.length > 0) {
+    rbRowsEcf += '<tr class="total-row"><td>TOTAL</td><td class="r">'+fmtBRL(ecf.receitaBruta)+'</td>'+
+      '<td class="r">—</td><td class="r">'+fmtBRL(ecf.p100.reduce((s,p)=>s+p.vlBase,0))+'</td></tr>';
+  }
+
+  document.getElementById('tab-receita').innerHTML =
+    '<div class="card"><div class="card-title">💰 Comparativo Receita Bruta ECD × ECF</div>'+
+    '<div class="grid2">'+
+      '<div>'+
+        '<div class="side-header-blue">📒 ECD — Bloco J150 (DRE)</div>'+
+        '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #E5E7EB;margin-bottom:8px">'+
+          '<span style="font-size:14px;font-weight:600;color:#374151">Total Receita Bruta</span>'+
+          '<span style="font-size:20px;font-weight:800;color:#0D1B2A">'+fmtBRL(ecd.receitaBruta)+'</span>'+
+        '</div>'+
+        '<div style="font-size:12px;color:#6B7280;margin-bottom:12px">'+
+          (ecd.autoDetected ? '✅ '+ecd.rbLines.length+' conta(s) identificada(s) automaticamente' : '⚠ Receita Bruta não identificada — exibindo soma de créditos (C)')+
+        '</div>'+
+        (rbRowsEcd ? '<table><thead><tr><th>Código</th><th>Descrição</th><th class="r">Valor</th></tr></thead><tbody>'+rbRowsEcd+'</tbody></table>' : '')+
+      '</div>'+
+      '<div>'+
+        '<div class="side-header-green">📊 ECF — Bloco P100 (Lucro Presumido)</div>'+
+        '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #E5E7EB;margin-bottom:8px">'+
+          '<span style="font-size:14px;font-weight:600;color:#374151">Total Receita Bruta</span>'+
+          '<span style="font-size:20px;font-weight:800;color:#0D1B2A">'+fmtBRL(ecf.receitaBruta)+'</span>'+
+        '</div>'+
+        '<div style="font-size:12px;color:#6B7280;margin-bottom:12px">'+ecf.p100.length+' registro(s) P100</div>'+
+        (rbRowsEcf ? '<table><thead><tr><th>Atividade</th><th class="r">Receita Trim.</th><th class="r">% Presunção</th><th class="r">Base Calc.</th></tr></thead><tbody>'+rbRowsEcf+'</tbody></table>' : '')+
+      '</div>'+
+    '</div>'+
+    '<div class="verdict '+(rbMatch?'ok':'bad')+'">'+
+      (rbMatch ? '✅ Receita Bruta confere — diferença de apenas '+fmtBRL(diff)+', dentro da tolerância de R$ 1,00'
+               : '❌ Divergência de '+fmtBRL(diff)+' ('+pct.toFixed(2)+'%) entre ECD e ECF — investigação necessária')+
+    '</div></div>';
+}
+
+// ─────────────────────────────────────────────────────────────
+// TAB: DRE (J150)
+// ─────────────────────────────────────────────────────────────
+function renderDRE() {
+  const { ecd } = STATE.results;
+  const rbSet = new Set(ecd.rbLines.map(a=>a.cod+'|'+a.desc));
+
+  let rows = '';
+  ecd.j150.forEach(a => {
+    const isRB = rbSet.has(a.cod+'|'+a.desc);
+    rows += '<tr'+(isRB?' class="rb-row"':'')+'>'+
+      '<td class="mono">'+esc(a.cod)+'</td>'+
+      '<td style="font-weight:'+(isRB?700:400)+'">'+esc(a.desc)+
+        (isRB ? ' <span style="padding:1px 7px;background:#FFFBEB;color:#92400E;border-radius:100px;font-size:10px;font-weight:700;border:1px solid #FDE68A">RB</span>' : '')+
+      '</td>'+
+      '<td class="mono">'+esc(a.agl)+'</td>'+
+      '<td class="r">'+fmtBRL(a.vl)+'</td>'+
+      '<td style="font-weight:700;color:'+(a.dc==='C'?'#16A34A':'#DC2626')+'">'+esc(a.dc)+'</td>'+
+    '</tr>';
+  });
+
+  document.getElementById('tab-dre').innerHTML =
+    '<div class="card"><div class="card-title">📒 DRE — ECD Bloco J150 · '+ecd.j150.length+' contas</div>'+
+    (ecd.j150.length===0 ? '<p style="color:#6B7280;font-size:14px;padding:16px 0">Nenhum registro J150 no arquivo ECD.</p>' :
+      '<div style="overflow-x:auto"><table>'+
+      '<thead><tr><th>Código</th><th>Descrição</th><th>Cód. Ref.</th><th class="r">Valor</th><th>D/C</th></tr></thead>'+
+      '<tbody>'+rows+'</tbody></table></div>')+
+    '</div>';
+}
+
+// ─────────────────────────────────────────────────────────────
+// TAB: ECF BLOCO P
+// ─────────────────────────────────────────────────────────────
+function renderECF() {
+  const { ecf } = STATE.results;
+
+  let chips = '';
+  ecf.p030.forEach(p => { chips += '<span class="chip">'+fmtDate(p.dtIni)+' – '+fmtDate(p.dtFin)+'</span>'; });
+
+  let p100Rows = '';
+  ecf.p100.forEach(p => {
+    p100Rows += '<tr><td>'+esc(p.tipAtiv||'—')+'</td><td class="r">'+fmtBRL(p.vlRec)+'</td>'+
+      '<td class="r">'+p.perc+'%</td><td class="r">'+fmtBRL(p.vlBaseEst)+'</td><td class="r" style="font-weight:600">'+fmtBRL(p.vlBase)+'</td></tr>';
+  });
+  if (ecf.p100.length>0) {
+    p100Rows += '<tr class="total-row"><td>TOTAL</td>'+
+      '<td class="r">'+fmtBRL(ecf.receitaBruta)+'</td>'+
+      '<td class="r">—</td>'+
+      '<td class="r">'+fmtBRL(ecf.p100.reduce((s,p)=>s+p.vlBaseEst,0))+'</td>'+
+      '<td class="r">'+fmtBRL(ecf.p100.reduce((s,p)=>s+p.vlBase,0))+'</td></tr>';
+  }
+
+  let p200Rows = '';
+  ecf.p200.forEach(p => {
+    p200Rows += '<tr><td>'+esc(p.tipAtiv||'—')+'</td><td class="r">'+fmtBRL(p.vlRec)+'</td>'+
+      '<td class="r">'+p.perc+'%</td><td class="r" style="font-weight:600">'+fmtBRL(p.vlBase)+'</td></tr>';
+  });
+
+  let html = '';
+  if (chips) html += '<div class="card"><div class="card-title">Períodos Apurados — P030</div><div>'+chips+'</div></div>';
+  if (p100Rows) html += '<div class="card"><div class="card-title">Base de Cálculo IRPJ — P100</div>'+
+    '<div style="overflow-x:auto"><table><thead><tr>'+
+    '<th>Tipo Atividade</th><th class="r">Receita Trimestre</th><th class="r">% Presunção</th><th class="r">Base Estimada</th><th class="r">Base Final</th>'+
+    '</tr></thead><tbody>'+p100Rows+'</tbody></table></div></div>';
+  if (p200Rows) html += '<div class="card"><div class="card-title">Base de Cálculo CSLL — P200</div>'+
+    '<div style="overflow-x:auto"><table><thead><tr>'+
+    '<th>Tipo Atividade</th><th class="r">Receita Trimestre</th><th class="r">% Presunção</th><th class="r">Base Final</th>'+
+    '</tr></thead><tbody>'+p200Rows+'</tbody></table></div></div>';
+  if (!p100Rows && !p200Rows) html = '<div class="card"><p style="color:#6B7280;font-size:14px">Nenhum registro P100/P200 encontrado. Verifique se o arquivo ECF é de Lucro Presumido.</p></div>';
+
+  document.getElementById('tab-ecf').innerHTML = html;
+}
+
+// ─────────────────────────────────────────────────────────────
+// TAB: IRPJ / CSLL
+// ─────────────────────────────────────────────────────────────
+function renderImpostos() {
+  const { ecf } = STATE.results;
+
+  let irpjRows = '', csllRows = '';
+  ecf.p150.forEach(p => {
+    irpjRows += '<tr><td>'+fmtBRL(p.vlBase)+'</td><td class="r">'+p.aliq+'%</td><td class="r" style="font-weight:600">'+fmtBRL(p.vlIrpj)+'</td></tr>';
+  });
+  ecf.p250.forEach(p => {
+    csllRows += '<tr><td>'+fmtBRL(p.vlBase)+'</td><td class="r">'+p.aliq+'%</td><td class="r" style="font-weight:600">'+fmtBRL(p.vlCsll)+'</td></tr>';
+  });
+
+  const cargaPct = ecf.receitaBruta > 0
+    ? ((ecf.irpjTotal+ecf.csllTotal)/ecf.receitaBruta*100).toFixed(2)+'%' : '—';
+
+  document.getElementById('tab-impostos').innerHTML =
+    '<div class="grid2">'+
+      '<div class="card" style="border-top:3px solid #0D1B2A">'+
+        '<div class="kpi-label">BASE IRPJ</div>'+
+        '<div style="font-size:24px;font-weight:800;color:#0D1B2A;margin-bottom:14px">'+fmtBRL(ecf.baseIrpj)+'</div>'+
+        '<div class="kpi-label">IRPJ APURADO</div>'+
+        '<div style="font-size:28px;font-weight:800;color:#0D1B2A">'+fmtBRL(ecf.irpjTotal)+'</div>'+
+        (irpjRows ? '<div style="margin-top:14px;overflow-x:auto"><table><thead><tr><th>Base</th><th class="r">Alíquota</th><th class="r">IRPJ</th></tr></thead><tbody>'+irpjRows+'</tbody></table></div>' : '')+
+      '</div>'+
+      '<div class="card" style="border-top:3px solid #7C3AED">'+
+        '<div class="kpi-label">BASE CSLL</div>'+
+        '<div style="font-size:24px;font-weight:800;color:#7C3AED;margin-bottom:14px">'+fmtBRL(ecf.baseCsll)+'</div>'+
+        '<div class="kpi-label">CSLL APURADA</div>'+
+        '<div style="font-size:28px;font-weight:800;color:#7C3AED">'+fmtBRL(ecf.csllTotal)+'</div>'+
+        (csllRows ? '<div style="margin-top:14px;overflow-x:auto"><table><thead><tr><th>Base</th><th class="r">Alíquota</th><th class="r">CSLL</th></tr></thead><tbody>'+csllRows+'</tbody></table></div>' : '')+
+      '</div>'+
+    '</div>'+
+    '<div id="carga-total">'+
+      '<div>'+
+        '<div style="font-size:13px;color:#8BA3BC;margin-bottom:4px">CARGA TRIBUTÁRIA TOTAL (IRPJ + CSLL)</div>'+
+        '<div style="font-size:32px;font-weight:800">'+fmtBRL(ecf.irpjTotal+ecf.csllTotal)+'</div>'+
+      '</div>'+
+      '<div style="text-align:right">'+
+        '<div style="font-size:13px;color:#8BA3BC">% sobre Receita Bruta</div>'+
+        '<div style="font-size:28px;font-weight:800;color:#F5A623">'+cargaPct+'</div>'+
+      '</div>'+
+    '</div>';
+}
+
+// ─────────────────────────────────────────────────────────────
+// CONTROLE DE ABAS
+// ─────────────────────────────────────────────────────────────
+function setTab(tabId) {
+  const tabs = ['resumo','receita','dre','ecf','impostos'];
+  tabs.forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===tabId ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', tabs[i]===tabId);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// RESET
+// ─────────────────────────────────────────────────────────────
+function reset() {
+  STATE.ecdRaw = null; STATE.ecfRaw = null; STATE.results = null;
+  document.getElementById('screen-results').style.display = 'none';
+  document.getElementById('screen-upload').style.display = 'block';
+  document.getElementById('btn-analyze').disabled = true;
+  document.getElementById('btn-analyze').textContent = '🔍\u00A0 Analisar e Validar';
+  ['ecd','ecf'].forEach(t => {
+    const z = document.getElementById('zone-'+t);
+    z.classList.remove('loaded');
+    z.querySelector('.upload-icon').textContent = t==='ecd'?'📒':'📊';
+    document.getElementById('label-'+t).textContent = 'Clique para selecionar';
+    document.getElementById('label-'+t).style.color = '#374151';
+    document.getElementById('sub-'+t).textContent = t==='ecd'?'ECD exportada pelo SPED':'ECF exportada pelo SPED';
+    document.getElementById('input-'+t).value = '';
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// PREVIEW CHECKLIST NA TELA DE UPLOAD
+// ─────────────────────────────────────────────────────────────
+(function initChecklist() {
+  const items = [
+    ['CNPJ',          'Idêntico nos dois arquivos'],
+    ['Período',       'Datas de início e fim coincidentes'],
+    ['Receita Bruta', 'ECD Bloco J150 (DRE) × ECF Bloco P100 — validação principal'],
+    ['Base IRPJ',     'Presunção e base de cálculo — ECF Bloco P100/P150'],
+    ['Base CSLL',     'Presunção e base de cálculo — ECF Bloco P200/P250'],
+    ['IRPJ / CSLL',   'Totais apurados por período'],
+    ['DRE Contábil',  'Contas J150 com identificação de Receita Bruta'],
+  ];
+  let html = '';
+  items.forEach(([t,d]) => {
+    html += '<div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #EFF2F7">'+
+      '<div style="width:8px;height:8px;border-radius:50%;background:#F5A623;margin-top:6px;flex-shrink:0"></div>'+
+      '<div><strong style="font-size:14px;color:#111827">'+t+'</strong> '+
+      '<span style="font-size:13px;color:#6B7280">'+d+'</span></div></div>';
+  });
+  document.getElementById('checklist-preview').innerHTML = html;
+})();
+</script>
+</body>
+</html>
